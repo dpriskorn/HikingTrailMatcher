@@ -36,16 +36,19 @@ class TestTrailItem(TestCase):
         eht.__lookup_in_osm_wikidata_link_api__()
         assert eht.osm_wikidata_link_return.no_match is True
         assert len(eht.osm_wikidata_link_results) == 0
+
     def test_lookup_in_osm_wikidata_link_api_single_match_node(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q130177")
         eht.__lookup_in_osm_wikidata_link_api__()
         assert eht.osm_wikidata_link_return.no_match is True
         assert len(eht.osm_wikidata_link_results) == 0
+
     def test_lookup_in_osm_wikidata_link_api_single_match_relation(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q59780")
         eht.__lookup_in_osm_wikidata_link_api__()
         assert eht.osm_wikidata_link_return.single_match is True
         assert len(eht.osm_wikidata_link_results) == 1
+
     def test_lookup_in_osm_wikidata_link_api_multiple_relations(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q151653")
         eht.__lookup_in_osm_wikidata_link_api__()

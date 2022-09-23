@@ -14,7 +14,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 
 import config
 from src.console import console
-from src.enums import Property, OsmIdSource
+from src.enums import OsmIdSource, Property
 from src.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.project_base_model import ProjectBaseModel
@@ -50,8 +50,10 @@ class TrailItem(ProjectBaseModel):
     def open_in_josm(self):
         if self.osm_ids:
             string_list = [str(id) for id in self.osm_ids]
-            return (f"http://localhost:8111/load_object?"
-                    f"new_layer=true&objects={','.join(string_list)}")
+            return (
+                f"http://localhost:8111/load_object?"
+                f"new_layer=true&objects={','.join(string_list)}"
+            )
 
     @property
     def waymarked_hiking_trails_search_url(self):
@@ -172,10 +174,10 @@ class TrailItem(ProjectBaseModel):
         self.__get_item_information__()
         self.__lookup_osm_relation_id_and_ask_user_to_choose_a_match__()
 
-    #@validate_arguments()
+    # @validate_arguments()
     def enrich_wikidata(self, osm_id_source: OsmIdSource):
         """We enrich Wikidata based on the choice of the user"""
-        if osm_id_source == OsmIdSource.QUESTIONAIRE:
+        if osm_id_source == OsmIdSource.QUESTIONNAIRE:
             osm_id = self.questionary_return.osm_id
         else:
             osm_id = self.osm_wikidata_link_results[0].id
@@ -228,21 +230,29 @@ class TrailItem(ProjectBaseModel):
                     # Gather the information we need
                     for item in osm_objects:
                         if item.get("type") == "relation":
-                            self.osm_wikidata_link_results.append(OsmWikidataLinkResult(**item))
+                            self.osm_wikidata_link_results.append(
+                                OsmWikidataLinkResult(**item)
+                            )
                             # We store the ids also in a list to easier handle
                             # the opening in JOSM and logic here
                             self.osm_ids.append(item.get("id"))
                     if len(self.osm_ids) > 1:
                         # If we get multiple matches we ask the user to fix the situation in JOSM
-                        console.print(f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
-                                      f"Please download the relations in JOSM and ensure 1-1 link. "
-                                      f"Click here to open in JOSM with remote control "
-                                      f"{self.open_in_josm}")
-                        self.osm_wikidata_link_return = OsmWikidataLinkReturn(multiple_matches=True)
+                        console.print(
+                            f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
+                            f"Please download the relations in JOSM and ensure 1-1 link. "
+                            f"Click here to open in JOSM with remote control "
+                            f"{self.open_in_josm}"
+                        )
+                        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
+                            multiple_matches=True
+                        )
                     elif len(self.osm_ids) == 1:
                         # We only got one relation that matches.
                         logger.info("We only got one relation that matches")
-                        self.osm_wikidata_link_return = OsmWikidataLinkReturn(single_match=True)
+                        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
+                            single_match=True
+                        )
             else:
                 self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
         else:
@@ -251,12 +261,16 @@ class TrailItem(ProjectBaseModel):
     def __match_using_osm_wikidata_link__(self):
         # inform user that we match based on
         match = self.osm_wikidata_link_results[0]
-        console.print("Match found via OSM Wikidata Link:\n"
-                      f"Id: {match.id}"
-                      f"Name: {match.tags.name}"
-                      f"Url: {self.osm_url(osm_id=match.id)}")
-        answer = console.input(f"Does the above match {self.label} and "
-                               f"'{self.description}' in Wikidata?(Y/n)")
+        console.print(
+            "Match found via OSM Wikidata Link:\n"
+            f"Id: {match.id}"
+            f"Name: {match.tags.name}"
+            f"Url: {self.osm_url(osm_id=match.id)}"
+        )
+        answer = console.input(
+            f"Does the above match {self.label} and "
+            f"'{self.description}' in Wikidata?(Y/n)"
+        )
         if answer == "" or answer.lower() == "y":
             # we got enter/yes
             self.enrich_wikidata(osm_id_source=OsmIdSource.OSM_WIKIDATA_LINK)
@@ -270,4 +284,3 @@ class TrailItem(ProjectBaseModel):
             return f"https://www.openstreetmap.org/relation/{osm_id}"
         else:
             return ""
-

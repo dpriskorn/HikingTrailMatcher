@@ -86,7 +86,7 @@ class EnrichHikingTrails(ProjectBaseModel):
                     f"and see if any fit with {trail.wd_url}"
                 )
             else:
-                trail.enrich_wikidata(osm_id_source=OsmIdSource.QUESTIONAIRE)
+                trail.enrich_wikidata(osm_id_source=OsmIdSource.QUESTIONNAIRE)
 
     def __login_to_wikidata__(self):
         logger.debug(f"Trying to log in to the Wikibase as {config.user_name}")

@@ -7,5 +7,5 @@ class Property(Enum):
 
 
 class OsmIdSource:
-    QUESTIONAIRE = auto()
+    QUESTIONNAIRE = auto()
     OSM_WIKIDATA_LINK = auto()
