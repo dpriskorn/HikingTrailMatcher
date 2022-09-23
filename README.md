@@ -1,4 +1,4 @@
-# Hiking trail scraper
+# Hiking trail matcher
 This tool was build to quickly enrich the hiking trails in Wikidata.
 
 It gets a list of hiking trails from Wikidata that are 
