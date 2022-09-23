@@ -2,4 +2,4 @@ requests==2.28.1
 pydantic==1.10.2
 wikibaseintegrator==0.12.1
 rich==12.5.1
-whaaaaat==0.5.2
+questionary==1.10.0
