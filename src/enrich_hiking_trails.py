@@ -138,7 +138,7 @@ class EnrichHikingTrails(BaseModel):
         time_object = WikidataTimeFormat()
         return Time(
             prop_nr=Property.POINT_IN_TIME.value,
-            time=time_object.day(),
+            time=time_object.day,
             precision=WikibaseDatePrecision.DAY,
         )
 
