@@ -7,7 +7,7 @@ from questionary import Choice
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
 from wikibaseintegrator.datatypes import ExternalID, Item, Time  # type: ignore
 from wikibaseintegrator.entities import ItemEntity  # type: ignore
-from wikibaseintegrator.models import Reference, References
+from wikibaseintegrator.models import Reference, References # type: ignore
 from wikibaseintegrator.wbi_enums import (  # type: ignore
     WikibaseDatePrecision,
     WikibaseSnakType,
