@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, List, Optional
+from urllib.parse import quote
 
 import requests
 from pydantic import validate_arguments
@@ -64,7 +65,7 @@ class TrailItem(ProjectBaseModel):
     @property
     def waymarked_hiking_trails_search_url(self):
         if self.label:
-            return f"https://hiking.waymarkedtrails.org/#search?query={self.label}"
+            return f"https://hiking.waymarkedtrails.org/#search?query={quote(self.label)}"
         else:
             return ""
 
@@ -195,7 +196,7 @@ class TrailItem(ProjectBaseModel):
                 claim = ExternalID(
                     prop_nr=Property.OSM_RELATION_ID.value,
                     value=None,
-                    qualifiers=[self.__time_today_statement__()],
+                    qualifiers=[self.__point_in_time_today_statement__()],
                 )
                 # Not documented, see https://github.com/LeMyst/WikibaseIntegrator/blob/9bc58824d2def664c950d53cca845524b93ec051/test/test_wbi_core.py#L199
                 claim.mainsnak.snaktype = WikibaseSnakType.NO_VALUE
@@ -207,10 +208,19 @@ class TrailItem(ProjectBaseModel):
                 console.print(f"Upload done, see {self.wd_url}")
 
     @staticmethod
-    def __time_today_statement__():
+    def __point_in_time_today_statement__():
         time_object = WikidataTimeFormat()
         return Time(
             prop_nr=Property.POINT_IN_TIME.value,
+            time=time_object.day,
+            precision=WikibaseDatePrecision.DAY,
+        )
+
+    @staticmethod
+    def __retrieved_today_statement__():
+        time_object = WikidataTimeFormat()
+        return Time(
+            prop_nr=Property.RETRIEVED.value,
             time=time_object.day,
             precision=WikibaseDatePrecision.DAY,
         )
@@ -324,7 +334,7 @@ class TrailItem(ProjectBaseModel):
                     value=str(ItemEnum.OPENSTREETMAP.value),
                 )
             )
-            reference.add(self.__time_today_statement__())
+            reference.add(self.__retrieved_today_statement__())
             self.item.add_claims(
                 claims=ExternalID(
                     prop_nr=Property.OSM_RELATION_ID.value,
