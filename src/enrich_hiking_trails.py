@@ -22,7 +22,7 @@ class EnrichHikingTrails(BaseModel):
     def __lookup_osm_relation_id__(self, label: str, aliases: List[str]) -> str:
         # lookup in the waymarked trails database
 
-        # present the result to the user (we alway want the first one)
+        # present the result to the user (we always want the first one)
         raise NotImplementedError()
 
     def add_osm_property_to_items(self):
@@ -46,7 +46,8 @@ class EnrichHikingTrails(BaseModel):
             console.print(result)
         return self.__extract_item_ids__(sparql_result=result)
 
-    def __get_sparql_result__(self):
+    @staticmethod
+    def __get_sparql_result__():
         # For now we limit to swedish trails
         return execute_sparql_query("""
         SELECT DISTINCT ?item ?itemLabel WHERE {
