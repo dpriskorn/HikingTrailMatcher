@@ -2,7 +2,6 @@ import logging
 from enum import Enum
 from typing import Dict, Iterable, List, Optional
 
-import questionary
 import requests  # type: ignore
 from pydantic import BaseModel, validate_arguments
 from questionary import Choice
@@ -54,6 +53,7 @@ class EnrichHikingTrails(BaseModel):
     @validate_arguments()
     def __ask_question__(self) -> Optional[str]:
         # present the result to the user to choose from
+        import questionary
         result = questionary.select(
             f"Which of these match '{self.label}'?",
             choices=self.choices,
@@ -142,15 +142,13 @@ class EnrichHikingTrails(BaseModel):
             else:
                 console.print("No match, adding no value = true to WD")
                 claim = ExternalID(
-                        prop_nr=Property.OSM_RELATION_ID.value,
-                        value=None,
-                        qualifiers=[self.__time_today_statement__()],
-                    )
+                    prop_nr=Property.OSM_RELATION_ID.value,
+                    value=None,
+                    qualifiers=[self.__time_today_statement__()],
+                )
                 # Not documented, see https://github.com/LeMyst/WikibaseIntegrator/blob/9bc58824d2def664c950d53cca845524b93ec051/test/test_wbi_core.py#L199
                 claim.mainsnak.snaktype = WikibaseSnakType.NO_VALUE
-                item.add_claims(
-                    claims=claim
-                )
+                item.add_claims(claims=claim)
 
     def __convert_waymarked_results_to_choices__(self):
         for result in self.waymarked_results:
@@ -179,4 +177,3 @@ class EnrichHikingTrails(BaseModel):
         wbi_config.config[
             "USER_AGENT"
         ] = "hiking-trail-scraper, see https://github.com/dpriskorn/hiking_trail_scraper/"
-
