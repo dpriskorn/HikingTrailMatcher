@@ -47,7 +47,7 @@ repos:
     name: pytest
     language: system
     entry: pytest
-    args:
+    #args:
 #      - "--durations=10"
 #      - "--ignore=tests/test_wcdimportbot.py"
     types: [ python ]
