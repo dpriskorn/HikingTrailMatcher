@@ -80,17 +80,18 @@ class TrailItem(ProjectBaseModel):
     #     self.item = None
 
     def __get_item_information__(self):
-        if self.wbi:
-            self.item = self.wbi.item.get(self.qid)
-            if self.item:
-                # TODO avoid hardcoding swedish
-                label = self.item.labels.get("sv")
-                if label:
-                    self.label = label.value
-                description = self.item.descriptions.get("sv")
-                if description:
-                    self.description = description.value
-                # aliases = item.aliases.get("sv")
+        if not self.wbi:
+            raise ValueError("self.wbi missing")
+        self.item = self.wbi.item.get(self.qid)
+        if self.item:
+            # We hardcode swedish for now
+            label = self.item.labels.get("sv")
+            if label:
+                self.label = label.value
+            description = self.item.descriptions.get("sv")
+            if description:
+                self.description = description.value
+            # aliases = item.aliases.get("sv")
 
     @validate_arguments()
     def __lookup_osm_relation_id_and_ask_user_to_choose_a_match__(self) -> None:
@@ -129,7 +130,7 @@ class TrailItem(ProjectBaseModel):
             return return_
         else:
             exit()
-            #raise TypeError("not a QuestionaryReturn")
+            # raise TypeError("not a QuestionaryReturn")
 
     @validate_arguments()
     def __lookup_in_the_waymarked_trails_database__(self, search_term: str) -> None:
@@ -148,10 +149,14 @@ class TrailItem(ProjectBaseModel):
                 self.waymarked_results.append(WaymarkedResult(**result))
 
     def fetch_and_lookup_and_present_choice_to_user(self):
+        """We collect all the information and help the user choose the right match"""
+        if not self.wbi:
+            raise ValueError("self.wbi missing")
         self.__get_item_information__()
         self.__lookup_osm_relation_id_and_ask_user_to_choose_a_match__()
 
     def enrich_wikidata(self):
+        """We enrich Wikidata based on the choice of the user"""
         osm_id = self.return_.osm_id
         if self.item:
             if osm_id:
@@ -183,4 +188,3 @@ class TrailItem(ProjectBaseModel):
             time=time_object.day,
             precision=WikibaseDatePrecision.DAY,
         )
-

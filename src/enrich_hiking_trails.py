@@ -10,6 +10,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
     WikibaseSnakType,
 )
 from wikibaseintegrator.wbi_helpers import execute_sparql_query  # type: ignore
+from wikibaseintegrator.wbi_login import Login # type: ignore
 
 import config
 from src.console import console
@@ -22,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 class EnrichHikingTrails(ProjectBaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
+    wbi: Optional[WikibaseIntegrator]
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def __get_hiking_trails_missing_osm_id__(self) -> Iterable[str]:
         result = self.__get_sparql_result__()
@@ -32,6 +37,7 @@ class EnrichHikingTrails(ProjectBaseModel):
     def __get_sparql_result__(self):
         # For now we limit to swedish trails
         self.setup_wbi()
+        # We hardcode swedish for now
         return execute_sparql_query(
             """
             SELECT DISTINCT ?item ?itemLabel WHERE {
@@ -67,14 +73,22 @@ class EnrichHikingTrails(ProjectBaseModel):
         items = self.__get_hiking_trails_missing_osm_id__()
         # We set up WBI once here and reuse it for every TrailItem
         self.setup_wbi()
-        wbi = WikibaseIntegrator()
+        self.__login_to_wikidata__()
         for qid in items:
-            trail = TrailItem(qid=qid, wbi=wbi)
+            trail = TrailItem(qid=qid, wbi=self.wbi)
             trail.fetch_and_lookup_and_present_choice_to_user()
             if trail.return_.quit:
                 break
             elif trail.return_.could_not_decide:
-                console.print(f"Try looking at {trail.waymarked_hiking_trails_search_url} "
-                              f"and see if any fit with {trail.wd_url}")
+                console.print(
+                    f"Try looking at {trail.waymarked_hiking_trails_search_url} "
+                    f"and see if any fit with {trail.wd_url}"
+                )
             else:
                 trail.enrich_wikidata()
+
+    def __login_to_wikidata__(self):
+        logger.debug(f"Trying to log in to the Wikibase as {config.user_name}")
+        self.wbi = WikibaseIntegrator(
+            login=Login(user=config.user_name, password=config.bot_password),
+        )
