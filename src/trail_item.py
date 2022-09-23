@@ -179,7 +179,9 @@ class TrailItem(ProjectBaseModel):
                 claim.mainsnak.snaktype = WikibaseSnakType.NO_VALUE
                 self.item.add_claims(claims=claim)
             if config.upload_to_wikidata:
-                self.item.write(summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]")
+                self.item.write(
+                    summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
+                )
                 console.print(f"Upload done, see {self.wd_url}")
 
     @staticmethod

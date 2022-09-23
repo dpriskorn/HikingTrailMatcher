@@ -10,7 +10,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
     WikibaseSnakType,
 )
 from wikibaseintegrator.wbi_helpers import execute_sparql_query  # type: ignore
-from wikibaseintegrator.wbi_login import Login # type: ignore
+from wikibaseintegrator.wbi_login import Login  # type: ignore
 
 import config
 from src.console import console
