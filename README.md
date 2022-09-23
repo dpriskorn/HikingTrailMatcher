@@ -33,3 +33,4 @@ and it is way easier to rewrite because tests and typing in concert
 quickly catches errors before they make it into the repo.
 * review and sharing ideas with others is very helpful. multiple minds think better than one.
 * it's fun to match!
+* I tried keeping all methods small in this project and it was somewhat of a challenge to invent good names for all the methods. 
