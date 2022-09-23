@@ -14,6 +14,7 @@ from wikibaseintegrator.wbi_login import Login  # type: ignore
 
 import config
 from src.console import console
+from src.enums import OsmIdSource
 from src.project_base_model import ProjectBaseModel
 from src.trail_item import TrailItem
 
@@ -77,15 +78,15 @@ class EnrichHikingTrails(ProjectBaseModel):
         for qid in items:
             trail = TrailItem(qid=qid, wbi=self.wbi)
             trail.fetch_and_lookup_and_present_choice_to_user()
-            if trail.return_.quit:
+            if trail.questionary_return.quit:
                 break
-            elif trail.return_.could_not_decide:
+            elif trail.questionary_return.could_not_decide:
                 console.print(
                     f"Try looking at {trail.waymarked_hiking_trails_search_url} "
                     f"and see if any fit with {trail.wd_url}"
                 )
             else:
-                trail.enrich_wikidata()
+                trail.enrich_wikidata(osm_id_source=OsmIdSource.QUESTIONAIRE)
 
     def __login_to_wikidata__(self):
         logger.debug(f"Trying to log in to the Wikibase as {config.user_name}")
