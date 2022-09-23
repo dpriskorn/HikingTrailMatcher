@@ -14,11 +14,16 @@ from wikibaseintegrator.wbi_login import Login  # type: ignore
 
 import config
 from src.console import console
+from src.enums import OsmIdSource, Status
 from src.project_base_model import ProjectBaseModel
 from src.trail_item import TrailItem
 
 logging.basicConfig(level=config.loglevel)
 logger = logging.getLogger(__name__)
+
+
+class MissingInformationError(BaseException):
+    pass
 
 
 class EnrichHikingTrails(ProjectBaseModel):
@@ -69,23 +74,55 @@ class EnrichHikingTrails(ProjectBaseModel):
                 logger.info(f"Yielded {yielded} bindings out of {number_of_bindings}")
 
     def add_osm_property_to_items(self):
+        """We setup WBI, lookup first in OSM Wikidata Link
+        and then fallback to labelmatching using the
+        Waymaked Trails API"""
         # get all hiking paths in sweden without osm id
         items = self.__get_hiking_trails_missing_osm_id__()
         # We set up WBI once here and reuse it for every TrailItem
         self.setup_wbi()
         self.__login_to_wikidata__()
         for qid in items:
-            trail = TrailItem(qid=qid, wbi=self.wbi)
-            trail.fetch_and_lookup_and_present_choice_to_user()
-            if trail.return_.quit:
-                break
-            elif trail.return_.could_not_decide:
-                console.print(
-                    f"Try looking at {trail.waymarked_hiking_trails_search_url} "
-                    f"and see if any fit with {trail.wd_url}"
-                )
-            else:
-                trail.enrich_wikidata()
+            trail_item = TrailItem(qid=qid, wbi=self.wbi)
+            trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
+            if (
+                trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
+                or trail_item.osm_wikidata_link_return.no_match is True
+            ):
+                logger.info("Falling back to Waymarked Trails API")
+                self.__lookup_in_waymarked_trails__(trail_item=trail_item)
+            # else:
+            #     logger.info("The match from OSM Wikidata Link was accepted by the user")
+
+    @staticmethod
+    def __lookup_in_osm_wikidata_link__(trail_item: TrailItem) -> TrailItem:
+        """We lookup in OSM Wikidata Link and mutate the object and then return it"""
+        trail_item.lookup_using_osm_wikidata_link()
+        if not trail_item.osm_wikidata_link_return:
+            raise MissingInformationError()
+        if trail_item.osm_wikidata_link_return.single_match:
+            logger.info("Got single match")
+            trail_item.__ask_user_to_approve_match_from_osm_wikidata_link__()
+        else:
+            if trail_item.osm_wikidata_link_return.no_match:
+                console.print(f"Got no match from OSM Wikidata Link API")
+        # Return mutated object
+        return trail_item
+
+    @staticmethod
+    def __lookup_in_waymarked_trails__(trail_item: TrailItem) -> None:
+        trail_item.fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user()
+        # if trail_item.questionary_return.quit:
+        #     break
+        if trail_item.questionary_return.could_not_decide:
+            console.print(
+                f"Try looking at {trail_item.waymarked_hiking_trails_search_url} "
+                f"and see if any fit with {trail_item.wd_url}"
+            )
+        else:
+            trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
+            trail_item.enrich_wikidata()
+        # We don't return anything here because we are done
 
     def __login_to_wikidata__(self):
         logger.debug(f"Trying to log in to the Wikibase as {config.user_name}")
