@@ -260,10 +260,16 @@ class TrailItem(ProjectBaseModel):
             f"Name: {match.tags.name}\n"
             f"Url: {self.osm_url(osm_id=match.id)}"
         )
-        answer = console.input(
-            f"Does the above match '{self.label}' with the description "
-            f"'{self.description}' in Wikidata?(Y/n)"
-        )
+        if self.description:
+            question = (
+                f"Does the above match '{self.label}' with the description "
+                f"'{self.description}' in Wikidata?(Y/n)"
+            )
+        else:
+            question = (
+                f"Does the above match '{self.label}' (description missing) in Wikidata?(Y/n)"
+            )
+        answer = console.input(question)
         if answer == "" or answer.lower() == "y":
             # we got enter/yes
             self.enrich_wikidata(osm_id_source=OsmIdSource.OSM_WIKIDATA_LINK)
