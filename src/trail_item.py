@@ -44,6 +44,7 @@ class TrailItem(ProjectBaseModel):
     osm_wikidata_link_results: List[OsmWikidataLinkResult] = []
     osm_wikidata_link_match_prompt_return: Optional[Status]
     osm_wikidata_link_data: Dict = dict()
+    already_fetched_item_details: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -93,19 +94,23 @@ class TrailItem(ProjectBaseModel):
     #     self.label = self.qid = self.description = ""
     #     self.item = None
 
-    def __get_item_information__(self):
-        if not self.wbi:
-            raise ValueError("self.wbi missing")
-        self.item = self.wbi.item.get(self.qid)
-        if self.item:
-            # We hardcode swedish for now
-            label = self.item.labels.get("sv")
-            if label:
-                self.label = label.value
-            description = self.item.descriptions.get("sv")
-            if description:
-                self.description = description.value
-            # aliases = item.aliases.get("sv")
+    def __get_item_details__(self):
+        if not self.already_fetched_item_details:
+            if not self.wbi:
+                raise ValueError("self.wbi missing")
+            self.item = self.wbi.item.get(self.qid)
+            if self.item:
+                # We hardcode swedish for now
+                label = self.item.labels.get("sv")
+                if label:
+                    self.label = label.value
+                description = self.item.descriptions.get("sv")
+                if description:
+                    self.description = description.value
+                # aliases = item.aliases.get("sv")
+                self.already_fetched_item_details = True
+            else:
+                raise Exception("self.item was None")
 
     @validate_arguments()
     def __lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__(
@@ -169,7 +174,7 @@ class TrailItem(ProjectBaseModel):
         """We collect all the information and help the user choose the right match"""
         if not self.wbi:
             raise ValueError("self.wbi missing")
-        self.__get_item_information__()
+        self.__get_item_details__()
         self.__lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__()
 
     # @validate_arguments()
@@ -246,6 +251,7 @@ class TrailItem(ProjectBaseModel):
             self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
 
     def __match_using_osm_wikidata_link__(self) -> None:
+        self.__get_item_details__()
         # inform user that we match based on
         match = self.osm_wikidata_link_results[0]
         console.print(
@@ -273,13 +279,11 @@ class TrailItem(ProjectBaseModel):
             return ""
 
     def __populate_osm_ids__(self):
-        """We only care about relations so we discard everyting else"""
+        """We only care about relations so we discard everything else"""
         osm_objects = self.osm_wikidata_link_data.get("osm")
         for item in osm_objects:
             if item.get("type") == "relation":
-                self.osm_wikidata_link_results.append(
-                    OsmWikidataLinkResult(**item)
-                )
+                self.osm_wikidata_link_results.append(OsmWikidataLinkResult(**item))
                 # We store the ids also in a list to easier handle
                 # the opening in JOSM and logic here
                 self.osm_ids.append(item.get("id"))
@@ -292,15 +296,9 @@ class TrailItem(ProjectBaseModel):
             f"Click here to open in JOSM with remote control "
             f"{self.open_in_josm}"
         )
-        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
-            multiple_matches=True
-        )
+        self.osm_wikidata_link_return = OsmWikidataLinkReturn(multiple_matches=True)
 
     def __handle_single_match__(self):
         # We only got one relation that matches.
         logger.info("We only got one relation that matches")
-        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
-            single_match=True
-        )
-
-
+        self.osm_wikidata_link_return = OsmWikidataLinkReturn(single_match=True)
