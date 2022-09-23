@@ -180,6 +180,7 @@ class TrailItem(ProjectBaseModel):
                 self.item.add_claims(claims=claim)
             if config.upload_to_wikidata:
                 self.item.write()
+                console.print(f"Upload done, see {self.wd_url}")
 
     @staticmethod
     def __time_today_statement__():
