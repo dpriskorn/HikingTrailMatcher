@@ -5,7 +5,7 @@ import requests
 from pydantic import validate_arguments
 from questionary import Choice
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
-from wikibaseintegrator.datatypes import ExternalID, Time, Item  # type: ignore
+from wikibaseintegrator.datatypes import ExternalID, Item, Time  # type: ignore
 from wikibaseintegrator.entities import ItemEntity  # type: ignore
 from wikibaseintegrator.models import Reference, References
 from wikibaseintegrator.wbi_enums import (  # type: ignore
@@ -15,7 +15,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 
 import config
 from src.console import console
-from src.enums import OsmIdSource, Property, Status, ItemEnum
+from src.enums import ItemEnum, OsmIdSource, Property, Status
 from src.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.project_base_model import ProjectBaseModel
@@ -263,9 +263,7 @@ class TrailItem(ProjectBaseModel):
                 f"'{self.description}' in Wikidata?(Y/n)"
             )
         else:
-            question = (
-                f"Does the above match '{self.label}' (description missing) in Wikidata?(Y/n)"
-            )
+            question = f"Does the above match '{self.label}' (description missing) in Wikidata?(Y/n)"
         answer = console.input(question)
         if answer == "" or answer.lower() == "y":
             # we got enter/yes
@@ -319,16 +317,16 @@ class TrailItem(ProjectBaseModel):
         else:
             # We got it from OSM Wikidata Link so add a reference
             reference = Reference()
-            reference.add(Item(
-                prop_nr=Property.STATED_IN,
-                value=str(ItemEnum.OPENSTREETMAP.value)
-            ))
+            reference.add(
+                Item(
+                    prop_nr=Property.STATED_IN, value=str(ItemEnum.OPENSTREETMAP.value)
+                )
+            )
             reference.add(self.__time_today_statement__())
             self.item.add_claims(
                 claims=ExternalID(
                     prop_nr=Property.OSM_RELATION_ID.value,
                     value=str(self.chosen_osm_id),
-                    references=References().add(reference=reference)
+                    references=References().add(reference=reference),
                 )
             )
-

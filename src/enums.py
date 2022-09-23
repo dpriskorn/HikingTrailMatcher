@@ -7,8 +7,10 @@ class Property(Enum):
     RETRIEVED = "P813"
     STATED_IN = "P248"
 
+
 class ItemEnum(Enum):
     OPENSTREETMAP = "Q936"
+
 
 class OsmIdSource:
     QUESTIONNAIRE = 0
