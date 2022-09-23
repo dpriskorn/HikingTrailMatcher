@@ -2,9 +2,13 @@ from enum import Enum
 
 
 class Property(Enum):
-    POINT_IN_TIME = "P585"
     OSM_RELATION_ID = "P402"
+    POINT_IN_TIME = "P585"
+    RETRIEVED = "P813"
+    STATED_IN = "P248"
 
+class ItemEnum(Enum):
+    OPENSTREETMAP = "Q936"
 
 class OsmIdSource:
     QUESTIONNAIRE = 0

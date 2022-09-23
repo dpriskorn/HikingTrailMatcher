@@ -5,8 +5,9 @@ import requests
 from pydantic import validate_arguments
 from questionary import Choice
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
-from wikibaseintegrator.datatypes import ExternalID, Time  # type: ignore
+from wikibaseintegrator.datatypes import ExternalID, Time, Item  # type: ignore
 from wikibaseintegrator.entities import ItemEntity  # type: ignore
+from wikibaseintegrator.models import Reference, References
 from wikibaseintegrator.wbi_enums import (  # type: ignore
     WikibaseDatePrecision,
     WikibaseSnakType,
@@ -14,7 +15,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 
 import config
 from src.console import console
-from src.enums import OsmIdSource, Property, Status
+from src.enums import OsmIdSource, Property, Status, ItemEnum
 from src.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.project_base_model import ProjectBaseModel
@@ -45,6 +46,8 @@ class TrailItem(ProjectBaseModel):
     osm_wikidata_link_match_prompt_return: Optional[Status]
     osm_wikidata_link_data: Dict = dict()
     already_fetched_item_details: bool = False
+    osm_id_source: Optional[OsmIdSource]
+    chosen_osm_id: int = 0
 
     class Config:
         arbitrary_types_allowed = True
@@ -178,21 +181,15 @@ class TrailItem(ProjectBaseModel):
         self.__lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__()
 
     # @validate_arguments()
-    def enrich_wikidata(self, osm_id_source: OsmIdSource):
+    def enrich_wikidata(self):
         """We enrich Wikidata based on the choice of the user"""
-        if osm_id_source == OsmIdSource.QUESTIONNAIRE:
-            osm_id = self.questionary_return.osm_id
+        if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
+            self.chosen_osm_id = self.questionary_return.osm_id
         else:
-            osm_id = self.osm_wikidata_link_results[0].id
+            self.chosen_osm_id = self.osm_wikidata_link_results[0].id
         if self.item:
-            if osm_id:
-                console.print(f"Got match, adding OSM = {osm_id} to WD")
-                self.item.add_claims(
-                    claims=ExternalID(
-                        prop_nr=Property.OSM_RELATION_ID.value,
-                        value=str(osm_id),
-                    )
-                )
+            if self.chosen_osm_id:
+                self.__add_osm_id_to_item__()
             else:
                 console.print("No match, adding no value = true to WD")
                 claim = ExternalID(
@@ -272,7 +269,8 @@ class TrailItem(ProjectBaseModel):
         answer = console.input(question)
         if answer == "" or answer.lower() == "y":
             # we got enter/yes
-            self.enrich_wikidata(osm_id_source=OsmIdSource.OSM_WIKIDATA_LINK)
+            self.osm_id_source = OsmIdSource.OSM_WIKIDATA_LINK
+            self.enrich_wikidata()
             self.osm_wikidata_link_match_prompt_return = Status.ACCEPTED
         else:
             self.osm_wikidata_link_match_prompt_return = Status.DECLINED
@@ -308,3 +306,29 @@ class TrailItem(ProjectBaseModel):
         # We only got one relation that matches.
         logger.info("We only got one relation that matches")
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(single_match=True)
+
+    def __add_osm_id_to_item__(self):
+        console.print(f"Got match, adding OSM = {self.chosen_osm_id} to WD")
+        if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
+            self.item.add_claims(
+                claims=ExternalID(
+                    prop_nr=Property.OSM_RELATION_ID.value,
+                    value=str(self.chosen_osm_id),
+                )
+            )
+        else:
+            # We got it from OSM Wikidata Link so add a reference
+            reference = Reference()
+            reference.add(Item(
+                prop_nr=Property.STATED_IN,
+                value=str(ItemEnum.OPENSTREETMAP.value)
+            ))
+            reference.add(self.__time_today_statement__())
+            self.item.add_claims(
+                claims=ExternalID(
+                    prop_nr=Property.OSM_RELATION_ID.value,
+                    value=str(self.chosen_osm_id),
+                    references=References().add(reference=reference)
+                )
+            )
+
