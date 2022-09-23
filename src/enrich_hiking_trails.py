@@ -8,7 +8,7 @@ from questionary import Choice
 from rich.console import Console
 from wikibaseintegrator import WikibaseIntegrator, wbi_config  # type: ignore
 from wikibaseintegrator.datatypes import ExternalID, Time  # type: ignore
-from wikibaseintegrator.wbi_enums import WikibaseDatePrecision, WikibaseSnakType
+from wikibaseintegrator.wbi_enums import WikibaseDatePrecision, WikibaseSnakType # type: ignore
 from wikibaseintegrator.wbi_helpers import execute_sparql_query  # type: ignore
 
 import config
@@ -60,11 +60,13 @@ class EnrichHikingTrails(BaseModel):
         ).ask()  # returns value of selection or None if user cancels
         if result:
             logger.info(f"{result} was chosen")
+            return str(result)
         elif result == "":
             logger.info("No match chosen")
+            return str(result)
         else:
             logger.info("User quit")
-        return result
+            return None
 
     @validate_arguments()
     def __lookup_in_the_waymarked_trails_database__(self, search_term: str) -> None:
@@ -152,7 +154,16 @@ class EnrichHikingTrails(BaseModel):
 
     def __convert_waymarked_results_to_choices__(self):
         for result in self.waymarked_results:
-            choice = Choice(title=result.name, value=result.id)
+            title = f"{result.name}"
+            if result.id:
+                title += f" ({result.id})"
+            if result.ref:
+                title += f", ref: {result.ref}"
+            if result.group:
+                title += f", group: {result.group}"
+            if result.itinerary:
+                title += f", itinerary: {', '.join(result.itinerary)}"
+            choice = Choice(title=title, value=result.id)
             self.choices.append(choice)
 
     @staticmethod
