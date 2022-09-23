@@ -6,10 +6,10 @@ from src.waymarked_result import WaymarkedResult
 
 
 class TestEnrichHikingTrails(TestCase):
-    def test_add_osm_property_to_items(self):
-        eht = EnrichHikingTrails()
-        with self.assertRaises(NotImplementedError):
-            eht.add_osm_property_to_items()
+    # def test_add_osm_property_to_items(self):
+    #     eht = EnrichHikingTrails()
+    #     with self.assertRaises(NotImplementedError):
+    #         eht.add_osm_property_to_items()
 
     def test___get_hiking_trails_missing_osm_id__(self):
         eht = EnrichHikingTrails()
@@ -31,3 +31,12 @@ class TestEnrichHikingTrails(TestCase):
         assert len(eht.waymarked_results) == 2
         eht.__remove_waymaked_result_duplicates__()
         assert len(eht.waymarked_results) == 1
+
+    def test_convert_to_choices(self):
+        eht = EnrichHikingTrails()
+        eht.waymarked_results.append(WaymarkedResult(name="test", id=1))
+        eht.waymarked_results.append(WaymarkedResult(name="test2", id=2))
+        eht.__convert_waymarked_results_to_choices__()
+        assert len(eht.choices) == 2
+        assert eht.choices[0].title == "test"
+        assert eht.choices[0].value == 1
