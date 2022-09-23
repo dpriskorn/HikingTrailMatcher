@@ -320,7 +320,8 @@ class TrailItem(ProjectBaseModel):
             reference = Reference()
             reference.add(
                 Item(
-                    prop_nr=Property.STATED_IN, value=str(ItemEnum.OPENSTREETMAP.value)
+                    prop_nr=Property.STATED_IN.value,
+                    value=str(ItemEnum.OPENSTREETMAP.value),
                 )
             )
             reference.add(self.__time_today_statement__())
