@@ -33,24 +33,25 @@ class TestTrailItem(TestCase):
 
     def test_lookup_in_osm_wikidata_link_api_no_match(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q820225")
-        eht.__lookup_in_osm_wikidata_link_api__()
+        eht.lookup_using_osm_wikidata_link()
+        # console.print(eht.osm_wikidata_link_return)
         assert eht.osm_wikidata_link_return.no_match is True
         assert len(eht.osm_wikidata_link_results) == 0
 
     def test_lookup_in_osm_wikidata_link_api_single_match_node(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q130177")
-        eht.__lookup_in_osm_wikidata_link_api__()
+        eht.lookup_using_osm_wikidata_link()
         assert eht.osm_wikidata_link_return.no_match is True
         assert len(eht.osm_wikidata_link_results) == 0
 
     def test_lookup_in_osm_wikidata_link_api_single_match_relation(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q59780")
-        eht.__lookup_in_osm_wikidata_link_api__()
+        eht.lookup_using_osm_wikidata_link()
         assert eht.osm_wikidata_link_return.single_match is True
         assert len(eht.osm_wikidata_link_results) == 1
 
     def test_lookup_in_osm_wikidata_link_api_multiple_relations(self):
         eht = TrailItem(wbi=WikibaseIntegrator(), qid="Q151653")
-        eht.__lookup_in_osm_wikidata_link_api__()
+        eht.lookup_using_osm_wikidata_link()
         console.print(eht.osm_wikidata_link_return.dict())
         assert eht.osm_wikidata_link_return.multiple_matches is True

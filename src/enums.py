@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum
 
 
 class Property(Enum):
@@ -7,5 +7,10 @@ class Property(Enum):
 
 
 class OsmIdSource:
-    QUESTIONNAIRE = auto()
-    OSM_WIKIDATA_LINK = auto()
+    QUESTIONNAIRE = 0
+    OSM_WIKIDATA_LINK = 1
+
+
+class Status(Enum):
+    ACCEPTED = 0
+    DECLINED = 1

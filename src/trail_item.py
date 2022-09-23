@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import requests
 from pydantic import validate_arguments
@@ -14,7 +14,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 
 import config
 from src.console import console
-from src.enums import OsmIdSource, Property
+from src.enums import OsmIdSource, Property, Status
 from src.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.project_base_model import ProjectBaseModel
@@ -42,6 +42,8 @@ class TrailItem(ProjectBaseModel):
     osm_ids: List[str] = []
     osm_wikidata_link_return: OsmWikidataLinkReturn = OsmWikidataLinkReturn()
     osm_wikidata_link_results: List[OsmWikidataLinkResult] = []
+    osm_wikidata_link_match_prompt_return: Optional[Status]
+    osm_wikidata_link_data: Dict = dict()
 
     class Config:
         arbitrary_types_allowed = True
@@ -106,7 +108,9 @@ class TrailItem(ProjectBaseModel):
             # aliases = item.aliases.get("sv")
 
     @validate_arguments()
-    def __lookup_osm_relation_id_and_ask_user_to_choose_a_match__(self) -> None:
+    def __lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__(
+        self,
+    ) -> None:
         if not self.label:
             raise ValueError("self.label was empty")
         if not isinstance(self.label, str):
@@ -161,18 +165,12 @@ class TrailItem(ProjectBaseModel):
                     raise TypeError("result was not a dictionary")
                 self.waymarked_results.append(WaymarkedResult(**result))
 
-    def fetch_and_lookup_and_present_choice_to_user(self):
+    def fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user(self):
         """We collect all the information and help the user choose the right match"""
         if not self.wbi:
             raise ValueError("self.wbi missing")
-        self.__lookup_in_osm_wikidata_link_api__()
-        if self.osm_wikidata_link_return.single_match:
-            self.__match_using_osm_wikidata_link__()
-        else:
-            if self.osm_wikidata_link_return.no_match:
-                console.print(f"Got no match from {osm_wikidata_link}")
         self.__get_item_information__()
-        self.__lookup_osm_relation_id_and_ask_user_to_choose_a_match__()
+        self.__lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__()
 
     # @validate_arguments()
     def enrich_wikidata(self, osm_id_source: OsmIdSource):
@@ -202,7 +200,7 @@ class TrailItem(ProjectBaseModel):
                 self.item.add_claims(claims=claim)
             if config.upload_to_wikidata:
                 self.item.write(
-                    summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
+                    summary="Added match to OSM via the [[Wikidata:Tools/hiking trail_item matcher|hiking trail_item matcher]]"
                 )
                 console.print(f"Upload done, see {self.wd_url}")
 
@@ -215,7 +213,7 @@ class TrailItem(ProjectBaseModel):
             precision=WikibaseDatePrecision.DAY,
         )
 
-    def __lookup_in_osm_wikidata_link_api__(self) -> None:
+    def lookup_using_osm_wikidata_link(self) -> None:
         """Lookup first in OSM
         See documentation here https://osm.wikidata.link/tagged/"""
         url = f"https://osm.wikidata.link/tagged/api/item/{self.qid}"
@@ -223,42 +221,31 @@ class TrailItem(ProjectBaseModel):
         if result.status_code == 200:
             data = result.json()
             console.print(data)
-            osm_objects = data.get("osm")
-            if osm_objects:
-                # We got data about an OSM object having this QID
-                if len(osm_objects) > 1:
-                    # Gather the information we need
-                    for item in osm_objects:
-                        if item.get("type") == "relation":
-                            self.osm_wikidata_link_results.append(
-                                OsmWikidataLinkResult(**item)
-                            )
-                            # We store the ids also in a list to easier handle
-                            # the opening in JOSM and logic here
-                            self.osm_ids.append(item.get("id"))
-                    if len(self.osm_ids) > 1:
-                        # If we get multiple matches we ask the user to fix the situation in JOSM
-                        console.print(
-                            f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
-                            f"Please download the relations in JOSM and ensure 1-1 link. "
-                            f"Click here to open in JOSM with remote control "
-                            f"{self.open_in_josm}"
-                        )
-                        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
-                            multiple_matches=True
-                        )
-                    elif len(self.osm_ids) == 1:
-                        # We only got one relation that matches.
-                        logger.info("We only got one relation that matches")
-                        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
-                            single_match=True
-                        )
-            else:
-                self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
+            self.osm_wikidata_link_data = data
+            self.__parse_response_from_osm_wikidata_link__()
         else:
             raise Exception(f"Got {result.status_code} from the API")
 
-    def __match_using_osm_wikidata_link__(self):
+    def __parse_response_from_osm_wikidata_link__(self):
+        osm_objects = self.osm_wikidata_link_data.get("osm")
+        if osm_objects:
+            # We got data about an OSM object having this QID
+            # It could be a node or a way which we do not care about
+            if len(osm_objects) > 0:
+                # Gather the information we need
+                self.__populate_osm_ids__()
+                # Act on it
+                if len(self.osm_ids) > 1:
+                    self.__hanndle_multiple_matches__()
+                elif len(self.osm_ids) == 1:
+                    self.__handle_single_match__()
+                else:
+                    # We got no osm_ids ergo the osm_object we got was not a relation
+                    self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
+        else:
+            self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
+
+    def __match_using_osm_wikidata_link__(self) -> None:
         # inform user that we match based on
         match = self.osm_wikidata_link_results[0]
         console.print(
@@ -274,9 +261,9 @@ class TrailItem(ProjectBaseModel):
         if answer == "" or answer.lower() == "y":
             # we got enter/yes
             self.enrich_wikidata(osm_id_source=OsmIdSource.OSM_WIKIDATA_LINK)
+            self.osm_wikidata_link_match_prompt_return = Status.ACCEPTED
         else:
-            # Do nothing here
-            pass
+            self.osm_wikidata_link_match_prompt_return = Status.DECLINED
 
     @staticmethod
     def osm_url(osm_id: int = 0):
@@ -284,3 +271,36 @@ class TrailItem(ProjectBaseModel):
             return f"https://www.openstreetmap.org/relation/{osm_id}"
         else:
             return ""
+
+    def __populate_osm_ids__(self):
+        """We only care about relations so we discard everyting else"""
+        osm_objects = self.osm_wikidata_link_data.get("osm")
+        for item in osm_objects:
+            if item.get("type") == "relation":
+                self.osm_wikidata_link_results.append(
+                    OsmWikidataLinkResult(**item)
+                )
+                # We store the ids also in a list to easier handle
+                # the opening in JOSM and logic here
+                self.osm_ids.append(item.get("id"))
+
+    def __hanndle_multiple_matches__(self):
+        # we got multiple matches so we ask the user to fix the situation in JOSM
+        console.print(
+            f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
+            f"Please download the relations in JOSM and ensure 1-1 link. "
+            f"Click here to open in JOSM with remote control "
+            f"{self.open_in_josm}"
+        )
+        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
+            multiple_matches=True
+        )
+
+    def __handle_single_match__(self):
+        # We only got one relation that matches.
+        logger.info("We only got one relation that matches")
+        self.osm_wikidata_link_return = OsmWikidataLinkReturn(
+            single_match=True
+        )
+
+
