@@ -261,7 +261,7 @@ class TrailItem(ProjectBaseModel):
             f"Url: {self.osm_url(osm_id=match.id)}"
         )
         answer = console.input(
-            f"Does the above match {self.label} and "
+            f"Does the above match '{self.label}' with the description "
             f"'{self.description}' in Wikidata?(Y/n)"
         )
         if answer == "" or answer.lower() == "y":
