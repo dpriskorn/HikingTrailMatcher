@@ -9,7 +9,7 @@ from questionary import Choice
 from rich.console import Console
 from wikibaseintegrator import WikibaseIntegrator, wbi_config  # type: ignore
 from wikibaseintegrator.datatypes import ExternalID, Time  # type: ignore
-from wikibaseintegrator.wbi_enums import WikibaseDatePrecision
+from wikibaseintegrator.wbi_enums import WikibaseDatePrecision, WikibaseSnakType
 from wikibaseintegrator.wbi_helpers import execute_sparql_query  # type: ignore
 
 import config
@@ -121,12 +121,15 @@ class EnrichHikingTrails(BaseModel):
                 )
             else:
                 console.print("No match, adding no value = true to WD")
-                item.add_claims(
-                    claims=ExternalID(
+                claim = ExternalID(
                         prop_nr=Property.OSM_RELATION_ID.value,
                         no_value=True,
                         qualifiers=[self.__time_today_statement__()],
                     )
+                # Not documented, see https://github.com/LeMyst/WikibaseIntegrator/blob/9bc58824d2def664c950d53cca845524b93ec051/test/test_wbi_core.py#L199
+                claim.mainsnak.snaktype = WikibaseSnakType.NO_VALUE
+                item.add_claims(
+                    claims=claim
                 )
 
     def __convert_waymarked_results_to_choices__(self):
