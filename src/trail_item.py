@@ -142,7 +142,8 @@ class TrailItem(ProjectBaseModel):
         result = requests.get(url=url)
         if result.status_code == 200:
             data = result.json()
-            console.print(data)
+            if config.loglevel == logging.DEBUG:
+                console.print(data)
             for result in data.get("results"):
                 if not isinstance(result, dict):
                     raise TypeError("result was not a dictionary")
