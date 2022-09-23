@@ -22,6 +22,10 @@ logging.basicConfig(level=config.loglevel)
 logger = logging.getLogger(__name__)
 
 
+class MissingInformationError(BaseException):
+    pass
+
+
 class EnrichHikingTrails(ProjectBaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
     wbi: Optional[WikibaseIntegrator]
@@ -91,7 +95,10 @@ class EnrichHikingTrails(ProjectBaseModel):
     def __lookup_in_osm_wikidata_link__(trail_item: TrailItem) -> TrailItem:
         """We lookup in OSM Wikidata Link and mutate the object and then return it"""
         trail_item.lookup_using_osm_wikidata_link()
+        if not trail_item.osm_wikidata_link_return:
+            raise MissingInformationError()
         if trail_item.osm_wikidata_link_return.single_match:
+            logger.info("Got single match")
             trail_item.__ask_user_to_approve_match_from_osm_wikidata_link__()
         else:
             if trail_item.osm_wikidata_link_return.no_match:
