@@ -85,11 +85,14 @@ class EnrichHikingTrails(ProjectBaseModel):
         for qid in items:
             trail_item = TrailItem(qid=qid, wbi=self.wbi)
             trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
-            if trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED:
+            if (
+                trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
+                or trail_item.osm_wikidata_link_return.no_match is True
+            ):
                 logger.info("Falling back to Waymarked Trails API")
                 self.__lookup_in_waymarked_trails__(trail_item=trail_item)
-            else:
-                logger.info("The match from OSM Wikidata Link was accepted by the user")
+            # else:
+            #     logger.info("The match from OSM Wikidata Link was accepted by the user")
 
     @staticmethod
     def __lookup_in_osm_wikidata_link__(trail_item: TrailItem) -> TrailItem:
