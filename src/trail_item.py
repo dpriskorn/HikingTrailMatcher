@@ -250,14 +250,14 @@ class TrailItem(ProjectBaseModel):
         else:
             self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
 
-    def __match_using_osm_wikidata_link__(self) -> None:
+    def __ask_user_to_approve_match_from_osm_wikidata_link__(self) -> None:
         self.__get_item_details__()
         # inform user that we match based on
         match = self.osm_wikidata_link_results[0]
         console.print(
             "Match found via OSM Wikidata Link:\n"
-            f"Id: {match.id}"
-            f"Name: {match.tags.name}"
+            f"Id: {match.id}\n"
+            f"Name: {match.tags.name}\n"
             f"Url: {self.osm_url(osm_id=match.id)}"
         )
         answer = console.input(

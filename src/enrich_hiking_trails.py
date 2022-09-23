@@ -90,7 +90,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         """We lookup in OSM Wikidata Link and mutate the object and then return it"""
         trail_item.lookup_using_osm_wikidata_link()
         if trail_item.osm_wikidata_link_return.single_match:
-            trail_item.__match_using_osm_wikidata_link__()
+            trail_item.__ask_user_to_approve_match_from_osm_wikidata_link__()
         else:
             if trail_item.osm_wikidata_link_return.no_match:
                 console.print(f"Got no match from OSM Wikidata Link API")
