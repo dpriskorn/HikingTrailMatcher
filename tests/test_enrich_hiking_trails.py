@@ -2,6 +2,7 @@ from typing import Iterable
 from unittest import TestCase
 
 from src.enrich_hiking_trails import EnrichHikingTrails
+from src.waymarked_result import WaymarkedResult
 
 
 class TestEnrichHikingTrails(TestCase):
@@ -22,3 +23,11 @@ class TestEnrichHikingTrails(TestCase):
         eht.__lookup_in_the_waymarked_trails_database__(search_term="Kungsleden")
         assert len(eht.waymarked_results) == 2
         assert eht.waymarked_results[0].id == 254324
+
+    def test_remove_duplicates(self):
+        eht = EnrichHikingTrails()
+        eht.waymarked_results.append(WaymarkedResult(name="test", id=1))
+        eht.waymarked_results.append(WaymarkedResult(name="test", id=1))
+        assert len(eht.waymarked_results) == 2
+        eht.__remove_waymaked_result_duplicates__()
+        assert len(eht.waymarked_results) == 1

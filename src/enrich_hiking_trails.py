@@ -3,14 +3,18 @@ from enum import Enum
 from typing import Dict, Iterable, List, Optional
 
 import questionary
-import requests # type: ignore
+import requests  # type: ignore
 from pydantic import BaseModel, validate_arguments
+from questionary import Choice
 from rich.console import Console
-from wikibaseintegrator import WikibaseIntegrator, wbi_config # type: ignore
-from wikibaseintegrator.datatypes import ExternalID # type: ignore
-from wikibaseintegrator.wbi_helpers import execute_sparql_query # type: ignore
+from wikibaseintegrator import WikibaseIntegrator, wbi_config  # type: ignore
+from wikibaseintegrator.datatypes import ExternalID, Time  # type: ignore
+from wikibaseintegrator.wbi_enums import WikibaseDatePrecision
+from wikibaseintegrator.wbi_helpers import execute_sparql_query  # type: ignore
 
 import config
+from src.waymarked_result import WaymarkedResult
+from src.wikidata_time_format import WikidataTimeFormat
 
 console = Console()
 logging.basicConfig(level=config.loglevel)
@@ -18,29 +22,33 @@ logger = logging.getLogger(__name__)
 
 
 class Property(Enum):
-    OSM_RELATION_ID = ""
-
-
-class WaymarkedResult(BaseModel):
-    id: int
-    name: str
+    POINT_IN_TIME = "P585"
+    OSM_RELATION_ID = "P402"
 
 
 class EnrichHikingTrails(BaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
     waymarked_results: List[WaymarkedResult] = []
+    choices: List[Choice] = []
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def __lookup_osm_relation_id__(self, label: str, aliases: List[str]) -> str:
         self.__lookup_in_the_waymarked_trails_database__(search_term=label)
-        # TODO present a list for the user to choose from
-
+        self.__remove_waymaked_result_duplicates__()
+        self.__convert_waymarked_results_to_choices__()
+        self.choices.append(Choice(title="None of these match", value=""))
+        # present the result to the user to choose from
         result = questionary.select(
-            "What do you want to do?",
-            choices=["Order a pizza", "Make a reservation", "Ask for opening hours"],
+            "Which of these match?",
+            choices=self.choices,
         ).ask()  # returns value of selection
-        console.print(result)
-        # present the result to the user (we always want the first one)
-        raise NotImplementedError()
+        if result:
+            logger.info(f"{result} was chosen")
+        else:
+            logger.info("No match chosen")
+        return str(result)
 
     def __lookup_in_the_waymarked_trails_database__(self, search_term) -> None:
         url = (
@@ -105,8 +113,35 @@ class EnrichHikingTrails(BaseModel):
             aliases = item.aliases.get("sv")
             osm_id = self.__lookup_osm_relation_id__(label=label, aliases=aliases)
             if osm_id:
+                console.print(f"Got match, adding OSM = {osm_id} to WD")
                 item.add_claims(
                     claims=ExternalID(
                         prop_nr=Property.OSM_RELATION_ID.value, value=osm_id
                     )
                 )
+            else:
+                console.print("No match, adding no value = true to WD")
+                item.add_claims(
+                    claims=ExternalID(
+                        prop_nr=Property.OSM_RELATION_ID.value,
+                        no_value=True,
+                        qualifiers=[self.__time_today_statement__()],
+                    )
+                )
+
+    def __convert_waymarked_results_to_choices__(self):
+        for result in self.waymarked_results:
+            choice = Choice(title=result.name, value=result.id)
+            self.choices.append(choice)
+
+    def __time_today_statement__(self):
+        time_object = WikidataTimeFormat()
+        return Time(
+            prop_nr=Property.POINT_IN_TIME.value,
+            time=time_object.day(),
+            precision=WikibaseDatePrecision.DAY,
+        )
+
+    def __remove_waymaked_result_duplicates__(self):
+        self.waymarked_results = list(set(self.waymarked_results))
+
