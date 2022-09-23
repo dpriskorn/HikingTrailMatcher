@@ -11,4 +11,3 @@ class WikidataTimeFormat(BaseModel):
     @property
     def day(self):
         return datetime.strftime(self.datetime_, "+%Y-%m-%dT00:00:00Z")
-
