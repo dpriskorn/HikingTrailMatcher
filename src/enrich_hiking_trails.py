@@ -1,14 +1,14 @@
 import logging
 from enum import Enum
-from typing import List, Optional, Dict, Iterable
+from typing import Dict, Iterable, List, Optional
 
-import requests
-from pydantic import BaseModel, validate_arguments
-from wikibaseintegrator import WikibaseIntegrator, wbi_config
-from wikibaseintegrator.datatypes import ExternalID
-from wikibaseintegrator.wbi_helpers import execute_sparql_query
-from rich.console import Console
 import questionary
+import requests # type: ignore
+from pydantic import BaseModel, validate_arguments
+from rich.console import Console
+from wikibaseintegrator import WikibaseIntegrator, wbi_config # type: ignore
+from wikibaseintegrator.datatypes import ExternalID # type: ignore
+from wikibaseintegrator.wbi_helpers import execute_sparql_query # type: ignore
 
 import config
 
@@ -61,7 +61,9 @@ class EnrichHikingTrails(BaseModel):
 
     @staticmethod
     def __get_sparql_result__():
-        wbi_config.config["USER_AGENT"] = "hiking-trail-scraper, see https://github.com/dpriskorn/hiking_trail_scraper/"
+        wbi_config.config[
+            "USER_AGENT"
+        ] = "hiking-trail-scraper, see https://github.com/dpriskorn/hiking_trail_scraper/"
         # For now we limit to swedish trails
         return execute_sparql_query(
             """
