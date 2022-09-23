@@ -16,3 +16,15 @@ If the user accepts a match it is uploaded to Wikidata at once.
 ## Invocation
 ### Windows
 `$ winpty python.exe app.py`
+
+# License
+GPLv3+
+
+# What I learned writing this tool
+* first time I used https://github.com/tmbo/questionary and I like it a lot! 
+I got it to work in Windows too thanks to a fantastic error message with a hint.
+* mypy and typing of everything makes for much higher quality code 
+and it is way easier to rewrite because tests and typing in concert 
+quickly catches errors before they make it into the repo.
+* review and sharing ideas with others is very helpful. multiple minds think better than one.
+* it's fun to match!
