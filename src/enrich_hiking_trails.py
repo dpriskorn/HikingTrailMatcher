@@ -30,27 +30,46 @@ class EnrichHikingTrails(BaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
     waymarked_results: List[WaymarkedResult] = []
     choices: List[Choice] = []
+    label: str = ""
 
     class Config:
         arbitrary_types_allowed = True
 
-    def __lookup_osm_relation_id__(self, label: str, aliases: List[str]) -> str:
-        self.__lookup_in_the_waymarked_trails_database__(search_term=label)
+    @validate_arguments()
+    def __lookup_osm_relation_id__(self) -> Optional[str]:
+        if not self.label:
+            raise ValueError("self.label was empty")
+        if not isinstance(self.label, str):
+            raise TypeError("self.label was not a str")
+        logger.info(f"looking up: {self.label}")
+        self.__lookup_in_the_waymarked_trails_database__(search_term=self.label)
+        self.__prepare_choices__()
+        return self.__ask_question__()
+
+    def __prepare_choices__(self):
         self.__remove_waymaked_result_duplicates__()
         self.__convert_waymarked_results_to_choices__()
         self.choices.append(Choice(title="None of these match", value=""))
+
+    @validate_arguments()
+    def __ask_question__(self) -> Optional[str]:
         # present the result to the user to choose from
         result = questionary.select(
-            "Which of these match?",
+            f"Which of these match '{self.label}'?",
             choices=self.choices,
-        ).ask()  # returns value of selection
+        ).ask()  # returns value of selection or None if user cancels
         if result:
             logger.info(f"{result} was chosen")
-        else:
+        elif result == "":
             logger.info("No match chosen")
-        return str(result)
+        else:
+            logger.info("User quit")
+        return result
 
-    def __lookup_in_the_waymarked_trails_database__(self, search_term) -> None:
+    @validate_arguments()
+    def __lookup_in_the_waymarked_trails_database__(self, search_term: str) -> None:
+        if not search_term:
+            raise ValueError("search_term was empty")
         url = (
             f"https://hiking.waymarkedtrails.org/api/v1/list/search?query={search_term}"
         )
@@ -67,12 +86,9 @@ class EnrichHikingTrails(BaseModel):
             console.print(result)
         return self.__extract_item_ids__(sparql_result=result)
 
-    @staticmethod
-    def __get_sparql_result__():
-        wbi_config.config[
-            "USER_AGENT"
-        ] = "hiking-trail-scraper, see https://github.com/dpriskorn/hiking_trail_scraper/"
+    def __get_sparql_result__(self):
         # For now we limit to swedish trails
+        self.__setup_wbi_()
         return execute_sparql_query(
             """
             SELECT DISTINCT ?item ?itemLabel WHERE {
@@ -106,24 +122,28 @@ class EnrichHikingTrails(BaseModel):
     def add_osm_property_to_items(self):
         # get all hiking paths in sweden without osm id
         items = self.__get_hiking_trails_missing_osm_id__()
+        self.__setup_wbi_()
+        wbi = WikibaseIntegrator()
         for qid in items:
-            wbi = WikibaseIntegrator()
+            self.__clear_attributes__()
             item = wbi.item.get(qid)
-            label = item.labels.get("sv")
-            aliases = item.aliases.get("sv")
-            osm_id = self.__lookup_osm_relation_id__(label=label, aliases=aliases)
+            self.label = item.labels.get("sv").value
+            # aliases = item.aliases.get("sv")
+            osm_id = self.__lookup_osm_relation_id__()
+            if osm_id is None:
+                break
             if osm_id:
                 console.print(f"Got match, adding OSM = {osm_id} to WD")
                 item.add_claims(
                     claims=ExternalID(
-                        prop_nr=Property.OSM_RELATION_ID.value, value=osm_id
+                        prop_nr=Property.OSM_RELATION_ID.value, value=str(osm_id)
                     )
                 )
             else:
                 console.print("No match, adding no value = true to WD")
                 claim = ExternalID(
                         prop_nr=Property.OSM_RELATION_ID.value,
-                        no_value=True,
+                        value=None,
                         qualifiers=[self.__time_today_statement__()],
                     )
                 # Not documented, see https://github.com/LeMyst/WikibaseIntegrator/blob/9bc58824d2def664c950d53cca845524b93ec051/test/test_wbi_core.py#L199
@@ -137,7 +157,8 @@ class EnrichHikingTrails(BaseModel):
             choice = Choice(title=result.name, value=result.id)
             self.choices.append(choice)
 
-    def __time_today_statement__(self):
+    @staticmethod
+    def __time_today_statement__():
         time_object = WikidataTimeFormat()
         return Time(
             prop_nr=Property.POINT_IN_TIME.value,
@@ -147,4 +168,15 @@ class EnrichHikingTrails(BaseModel):
 
     def __remove_waymaked_result_duplicates__(self):
         self.waymarked_results = list(set(self.waymarked_results))
+
+    def __clear_attributes__(self):
+        self.waymarked_results = []
+        self.choices = []
+        self.label = ""
+
+    @staticmethod
+    def __setup_wbi_():
+        wbi_config.config[
+            "USER_AGENT"
+        ] = "hiking-trail-scraper, see https://github.com/dpriskorn/hiking_trail_scraper/"
 
