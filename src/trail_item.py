@@ -222,7 +222,8 @@ class TrailItem(ProjectBaseModel):
         result = requests.get(url)
         if result.status_code == 200:
             data = result.json()
-            console.print(data)
+            if config.loglevel == logging.DEBUG:
+                console.print(data)
             self.osm_wikidata_link_data = data
             self.__parse_response_from_osm_wikidata_link__()
         else:
