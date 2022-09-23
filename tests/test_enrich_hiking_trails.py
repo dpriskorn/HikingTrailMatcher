@@ -16,3 +16,9 @@ class TestEnrichHikingTrails(TestCase):
         assert isinstance(qids, Iterable)
         for qid in qids:
             assert isinstance(qid, str)
+
+    def test___lookup_in_the_waymarked_trails_database__(self):
+        eht = EnrichHikingTrails()
+        eht.__lookup_in_the_waymarked_trails_database__(search_term="Kungsleden")
+        assert len(eht.waymarked_results) == 2
+        assert eht.waymarked_results[0].id == 254324
