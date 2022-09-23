@@ -43,11 +43,11 @@ repos:
            "--statistics"]
     types: [ python ]
 
-  - id: pytest
-    name: pytest
-    language: system
-    entry: pytest
-    #args:
-#      - "--durations=10"
-#      - "--ignore=tests/test_wcdimportbot.py"
-    types: [ python ]
+#  - id: pytest
+#    name: pytest
+#    language: system
+#    entry: pytest
+#    #args:
+##      - "--durations=10"
+##      - "--ignore=tests/test_wcdimportbot.py"
+#    types: [ python ]

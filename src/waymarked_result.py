@@ -1,10 +1,11 @@
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel
 
 
 class WaymarkedResult(BaseModel):
     """Models the JSON response from the Waymarked Trails API"""
+
     id: int
     group: str = ""
     name: str
