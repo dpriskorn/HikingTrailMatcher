@@ -50,7 +50,7 @@ class EnrichHikingTrails(ProjectBaseModel):
                     wdt:P17 wd:{config.country_qid}.
               minus{{?item wdt:P402 []}}
               # Fetch labels for easier debugging
-              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{config.language_code}". }} 
+              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{config.language_code}". }}
             }}
             """
         )

@@ -65,7 +65,9 @@ class TrailItem(ProjectBaseModel):
     @property
     def waymarked_hiking_trails_search_url(self):
         if self.label:
-            return f"https://hiking.waymarkedtrails.org/#search?query={quote(self.label)}"
+            return (
+                f"https://hiking.waymarkedtrails.org/#search?query={quote(self.label)}"
+            )
         else:
             return ""
 
