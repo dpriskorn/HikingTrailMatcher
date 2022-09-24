@@ -205,7 +205,7 @@ class TrailItem(ProjectBaseModel):
                 self.item.add_claims(claims=claim)
             if config.upload_to_wikidata:
                 self.item.write(
-                    summary="Added match to OSM via the [[Wikidata:Tools/hiking trail_item matcher|hiking trail_item matcher]]"
+                    summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
                 )
                 console.print(f"Upload done, see {self.wd_url}")
 
