@@ -44,13 +44,14 @@ class EnrichHikingTrails(ProjectBaseModel):
         self.setup_wbi()
         # We hardcode swedish for now
         return execute_sparql_query(
-            """
-            SELECT DISTINCT ?item ?itemLabel WHERE {
+            f"""
+            SELECT DISTINCT ?item ?itemLabel WHERE {{
               ?item wdt:P31 wd:Q2143825;
-                    wdt:P17 wd:Q34.
-              minus{?item wdt:P402 []}
-              SERVICE wikibase:label { bd:serviceParam wikibase:language "sv,en". } # Hjälper dig hämta etiketten på ditt språk, om inte annat på engelska
-            }
+                    wdt:P17 wd:{config.country_qid}.
+              minus{{?item wdt:P402 []}}
+              # Fetch labels for easier debugging
+              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{config.language_code}". }}
+            }}
             """
         )
 

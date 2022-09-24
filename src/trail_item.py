@@ -65,7 +65,9 @@ class TrailItem(ProjectBaseModel):
     @property
     def waymarked_hiking_trails_search_url(self):
         if self.label:
-            return f"https://hiking.waymarkedtrails.org/#search?query={quote(self.label)}"
+            return (
+                f"https://hiking.waymarkedtrails.org/#search?query={quote(self.label)}"
+            )
         else:
             return ""
 
@@ -105,10 +107,10 @@ class TrailItem(ProjectBaseModel):
             self.item = self.wbi.item.get(self.qid)
             if self.item:
                 # We hardcode swedish for now
-                label = self.item.labels.get("sv")
+                label = self.item.labels.get(config.language_code)
                 if label:
                     self.label = label.value
-                description = self.item.descriptions.get("sv")
+                description = self.item.descriptions.get(config.language_code)
                 if description:
                     self.description = description.value
                 # aliases = item.aliases.get("sv")
