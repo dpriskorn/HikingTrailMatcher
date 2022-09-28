@@ -85,13 +85,18 @@ class EnrichHikingTrails(ProjectBaseModel):
         self.__login_to_wikidata__()
         for qid in items:
             trail_item = TrailItem(qid=qid, wbi=self.wbi)
-            trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
-            if (
-                trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
-                or trail_item.osm_wikidata_link_return.no_match is True
-            ):
-                logger.info("Falling back to Waymarked Trails API")
-                self.__lookup_in_waymarked_trails__(trail_item=trail_item)
+            if trail_item.time_to_check_again():
+                trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
+                if (
+                    trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
+                    or trail_item.osm_wikidata_link_return.no_match is True
+                ):
+                    logger.info("Falling back to Waymarked Trails API")
+                    self.__lookup_in_waymarked_trails__(trail_item=trail_item)
+            else:
+                logger.info(
+                    f"Skipping item with recent no-value statement, see {trail_item.wikidata_url}"
+                )
             # else:
             #     logger.info("The match from OSM Wikidata Link was accepted by the user")
 
@@ -118,7 +123,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         if trail_item.questionary_return.could_not_decide:
             console.print(
                 f"Try looking at {trail_item.waymarked_hiking_trails_search_url} "
-                f"and see if any fit with {trail_item.wd_url}"
+                f"and see if any fit with {trail_item.wikidata_url}"
             )
         else:
             trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE

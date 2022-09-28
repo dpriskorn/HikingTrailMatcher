@@ -10,3 +10,7 @@ user_agent = f"hiking_trail_matcher, see https://github.com/dpriskorn/hiking_tra
 # This controls which hiking trails to fetch and work on
 language_code = "en"
 country_qid = "Q30"
+
+# we check once a year for new relations in OSM to avoid
+# clogging wikidata with novalue statements
+max_days_between_new_check = 365

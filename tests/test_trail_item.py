@@ -1,5 +1,7 @@
+from datetime import datetime
 from unittest import TestCase
 
+from dateutil.tz import tzutc
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
 
 import config
@@ -69,3 +71,26 @@ class TestTrailItem(TestCase):
         trail_item.__get_item_details__()
         assert trail_item.label == ""
         assert trail_item.description == ""
+
+    def test___get_item_details_no_value(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q7407905")
+        trail_item.__get_item_details__()
+        assert len(trail_item.no_value_point_in_times) == 1
+        assert (
+            datetime(day=24, month=9, year=2022, tzinfo=tzutc())
+            == trail_item.no_value_point_in_times[0]
+        )
+
+    def test_no_value_statement_exists(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q7407905")
+        trail_item.__get_item_details__()
+        assert trail_item.__no_value_statement_exists__ is True
+
+    def test_time_to_check_again(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q7407905")
+        assert trail_item.time_to_check_again() is False
+
+    def test_time_to_check_again_lets_check(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator())
+        trail_item.most_recent_no_value_date = datetime(day=24, month=9, year=2020, tzinfo=tzutc())
+        assert trail_item.time_to_check_again(testing=True) is True
