@@ -1,4 +1,5 @@
 import logging
+import textwrap
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from urllib.parse import quote
@@ -90,15 +91,17 @@ class TrailItem(ProjectBaseModel):
                 title += f" ({result.id})"
             if result.ref:
                 title += f", ref: {result.ref}"
+            if result.number_of_subroutes:
+                title += f", subroutes #: {result.number_of_subroutes}"
             if result.names_of_subroutes_as_string:
                 title += f", subroutes: {result.names_of_subroutes_as_string}"
-            if result.description:
-                title += f", description: {result.description}"
+            # if result.description:
+            #     title += f", description: {result.description}"
             if result.group:
                 title += f", group: {result.group}"
             if result.itinerary:
                 title += f", itinerary: {', '.join(result.itinerary)}"
-            choice = Choice(title=title, value=QuestionaryReturn(osm_id=result.id))
+            choice = Choice(title=textwrap.fill(title, 100), value=QuestionaryReturn(osm_id=result.id))
             self.choices.append(choice)
 
     def __remove_waymaked_result_duplicates__(self):
@@ -417,3 +420,4 @@ class TrailItem(ProjectBaseModel):
         else:
             logger.info("The item is missing a no-value statement")
             return True
+
