@@ -90,6 +90,10 @@ class TrailItem(ProjectBaseModel):
                 title += f" ({result.id})"
             if result.ref:
                 title += f", ref: {result.ref}"
+            if result.names_of_subroutes_as_string:
+                title += f", subroutes: {result.names_of_subroutes_as_string}"
+            if result.description:
+                title += f", description: {result.description}"
             if result.group:
                 title += f", group: {result.group}"
             if result.itinerary:
