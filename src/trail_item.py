@@ -1,8 +1,10 @@
 import logging
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
 import requests
+from dateutil.tz import tzutc # type: ignore
 from pydantic import validate_arguments
 from questionary import Choice
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
@@ -13,6 +15,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
     WikibaseDatePrecision,
     WikibaseSnakType,
 )
+from dateutil.parser import parse # type: ignore
 
 import config
 from src.console import console
@@ -49,6 +52,8 @@ class TrailItem(ProjectBaseModel):
     already_fetched_item_details: bool = False
     osm_id_source: Optional[OsmIdSource]
     chosen_osm_id: int = 0
+    no_value_point_in_times: List[datetime] = []
+    most_recent_no_value_date: Optional[datetime]
 
     class Config:
         arbitrary_types_allowed = True
@@ -72,7 +77,7 @@ class TrailItem(ProjectBaseModel):
             return ""
 
     @property
-    def wd_url(self):
+    def wikidata_url(self):
         if self.qid:
             return f"https://www.wikidata.org/wiki/{self.qid}"
         else:
@@ -101,6 +106,7 @@ class TrailItem(ProjectBaseModel):
     #     self.item = None
 
     def __get_item_details__(self):
+        """Get the details we need from Wikidata"""
         if not self.already_fetched_item_details:
             if not self.wbi:
                 raise ValueError("self.wbi missing")
@@ -114,9 +120,34 @@ class TrailItem(ProjectBaseModel):
                 if description:
                     self.description = description.value
                 # aliases = item.aliases.get("sv")
+                self.__parse_no_value_statements__()
                 self.already_fetched_item_details = True
             else:
                 raise Exception("self.item was None")
+
+    def __parse_no_value_statements__(self):
+        try:
+            osm_claims = self.item.claims.get(
+                property=str(Property.OSM_RELATION_ID.value)
+            )
+            for osm_claim in osm_claims:
+                if osm_claim.mainsnak.snaktype == WikibaseSnakType.NO_VALUE:
+                    try:
+                        point_in_time_list = osm_claim.qualifiers.get(
+                            property=str(Property.POINT_IN_TIME.value)
+                        )
+                        for entry in point_in_time_list:
+                            date_string = entry.datavalue["value"]["time"]
+                            logger.info(f"found date: {date_string}")
+                            date = parse(date_string[1:])
+                            logger.info(f"found date: {date}")
+                            self.no_value_point_in_times.append(date)
+                    except KeyError:
+                        raise ValueError(
+                            "No qualifier found for the osm relation id no-value node on this item"
+                        )
+        except KeyError:
+            logger.info("No osm relation id-values on this item")
 
     @validate_arguments()
     def __lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__(
@@ -207,7 +238,7 @@ class TrailItem(ProjectBaseModel):
                 self.item.write(
                     summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
                 )
-                console.print(f"Upload done, see {self.wd_url}")
+                console.print(f"Upload done, see {self.wikidata_url}")
 
     @staticmethod
     def __point_in_time_today_statement__():
@@ -344,3 +375,37 @@ class TrailItem(ProjectBaseModel):
                     references=References().add(reference=reference),
                 )
             )
+
+    @property
+    def __no_value_statement_exists__(self) -> bool:
+        if self.no_value_point_in_times:
+            return True
+        # Default to false
+        return False
+
+    def __find_most_recent_no_value_date__(self):
+        self.most_recent_no_value_date = sorted(
+            self.no_value_point_in_times, reverse=True
+        )[0]
+
+    def time_to_check_again(self, testing: bool = False) -> bool:
+        if not testing:
+            self.__get_item_details__()
+        if self.__no_value_statement_exists__ or testing:
+            if not testing:
+                self.__find_most_recent_no_value_date__()
+            if self.most_recent_no_value_date:
+                latest_date_for_new_check = datetime.now(tz=tzutc()) - timedelta(
+                    days=config.max_days_between_new_check
+                )
+                if latest_date_for_new_check > self.most_recent_no_value_date:
+                    # Maximum number of days passed, let's check again
+                    logger.info("Time to check again")
+                    return True
+                else:
+                    return False
+            else:
+                raise ValueError("missing self.most_recent_no_value_date")
+        else:
+            logger.info("The item is missing a no-value statement")
+            return True
