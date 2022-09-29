@@ -58,8 +58,9 @@ class WaymarkedResult(BaseModel):
             self.mapped_length = self.details.get("mapped_length")
             self.description = self.details.get("description")
             subroutes = self.details.get("subroutes")
-            for route in subroutes:
-                self.subroutes.append(Subroute(**route))
+            if subroutes:
+                for route in subroutes:
+                    self.subroutes.append(Subroute(**route))
     @property
     def number_of_subroutes(self) -> int:
         return len(self.subroutes)
