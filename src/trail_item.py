@@ -159,6 +159,7 @@ class TrailItem(ProjectBaseModel):
             raise TypeError("self.label was not a str")
         logger.info(f"looking up: {self.label}")
         self.__lookup_in_the_waymarked_trails_database__(search_term=self.label)
+        self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
         self.questionary_return = self.__ask_question__()
 
@@ -206,6 +207,9 @@ class TrailItem(ProjectBaseModel):
                 if not isinstance(result, dict):
                     raise TypeError("result was not a dictionary")
                 self.waymarked_results.append(WaymarkedResult(**result))
+
+    def __get_details_from_waymarked_trails__(self) -> None:
+        [result.get_details() for result in self.waymarked_results]
 
     def fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user(self):
         """We collect all the information and help the user choose the right match"""
