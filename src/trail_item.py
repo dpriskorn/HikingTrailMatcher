@@ -159,12 +159,12 @@ class TrailItem(ProjectBaseModel):
             raise TypeError("self.label was not a str")
         logger.info(f"looking up: {self.label}")
         self.__lookup_in_the_waymarked_trails_database__(search_term=self.label)
+        self.__remove_waymaked_result_duplicates__()
         self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
         self.questionary_return = self.__ask_question__()
 
     def __prepare_choices__(self):
-        self.__remove_waymaked_result_duplicates__()
         self.__convert_waymarked_results_to_choices__()
         self.choices.append(
             Choice(
