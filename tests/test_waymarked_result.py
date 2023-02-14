@@ -59,31 +59,13 @@ class TestWaymarkedResult:
         assert wr.details is not None
 
     def test_parse_details(self):
-        data = {
-            "type": "relation",
-            "id": 241043,
-            "name": "Upplandsleden",
-            "group": "NAT",
-            "symbol_description": "orange bar",
-            "symbol_id": "osmc_NAT_white_bar_orange",
-        }
-        wr = WaymarkedResult(**data)
-        wr.__fetch_details__()
-        wr.__parse_details__()
-        assert wr.official_length == 500000.0
-        assert wr.mapped_length == 607380.0
-        assert wr.description == "hiking trail in Uppland"
-
+        wr = WaymarkedResult(id=1014050, name="skåneleden")
+        wr.get_details()
+        assert wr.official_length == 1300000.0
+        assert wr.mapped_length == 1453719.0
+        assert wr.description is None
 
     def test_number_of_subroutes(self):
-        data = {
-            "type": "relation",
-            "id": 241043,
-            "name": "Upplandsleden",
-            "group": "NAT",
-            "symbol_description": "orange bar",
-            "symbol_id": "osmc_NAT_white_bar_orange",
-        }
-        wr = WaymarkedResult(**data)
+        wr = WaymarkedResult(id=1014050, name="skåneleden") # skåneleden
         wr.get_details()
-        assert wr.number_of_subroutes == 36
+        assert wr.number_of_subroutes == 6
