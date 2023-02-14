@@ -1,4 +1,5 @@
 import logging
+import textwrap
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from urllib.parse import quote
@@ -90,11 +91,17 @@ class TrailItem(ProjectBaseModel):
                 title += f" ({result.id})"
             if result.ref:
                 title += f", ref: {result.ref}"
+            if result.number_of_subroutes:
+                title += f", subroutes #: {result.number_of_subroutes}"
+            if result.names_of_subroutes_as_string:
+                title += f", subroutes: {result.names_of_subroutes_as_string}"
+            # if result.description:
+            #     title += f", description: {result.description}"
             if result.group:
                 title += f", group: {result.group}"
             if result.itinerary:
                 title += f", itinerary: {', '.join(result.itinerary)}"
-            choice = Choice(title=title, value=QuestionaryReturn(osm_id=result.id))
+            choice = Choice(title=textwrap.fill(title, 100), value=QuestionaryReturn(osm_id=result.id))
             self.choices.append(choice)
 
     def __remove_waymaked_result_duplicates__(self):
@@ -159,11 +166,12 @@ class TrailItem(ProjectBaseModel):
             raise TypeError("self.label was not a str")
         logger.info(f"looking up: {self.label}")
         self.__lookup_in_the_waymarked_trails_database__(search_term=self.label)
+        self.__remove_waymaked_result_duplicates__()
+        self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
         self.questionary_return = self.__ask_question__()
 
     def __prepare_choices__(self):
-        self.__remove_waymaked_result_duplicates__()
         self.__convert_waymarked_results_to_choices__()
         self.choices.append(
             Choice(
@@ -206,6 +214,9 @@ class TrailItem(ProjectBaseModel):
                 if not isinstance(result, dict):
                     raise TypeError("result was not a dictionary")
                 self.waymarked_results.append(WaymarkedResult(**result))
+
+    def __get_details_from_waymarked_trails__(self) -> None:
+        [result.get_details() for result in self.waymarked_results]
 
     def fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user(self):
         """We collect all the information and help the user choose the right match"""
@@ -409,3 +420,4 @@ class TrailItem(ProjectBaseModel):
         else:
             logger.info("The item is missing a no-value statement")
             return True
+

@@ -18,9 +18,21 @@ If the user cannot decide whether they match, they are provided with links to ma
 If the user choose "no match" then a no-value statement with the current date is uploaded to Wikidata.
 If the user accepts a match it is uploaded to Wikidata at once.
 
+## Installation and setup
+Make sure you have poetry installed with
+
+`$ pip  install poetry`
+
+And then run
+
+`$ poetry install`
+
 ## Invocation
 ### Windows
 `$ winpty python.exe app.py`
+
+### Linux
+`$ python app.py`
 
 # License
 GPLv3+
