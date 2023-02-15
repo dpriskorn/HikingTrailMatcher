@@ -14,9 +14,7 @@ class TestEnrichHikingTrails(TestCase):
     def test___get_hiking_trails_missing_osm_id__(self):
         eht = EnrichHikingTrails()
         qids = eht.__get_hiking_trails_missing_osm_id__()
-        assert isinstance(qids, Iterable)
-        for qid in qids:
-            assert isinstance(qid, str)
+        assert eht.number_of_items > 0
 
     def test_setup_wbi(self):
         eht = EnrichHikingTrails()
@@ -27,10 +25,8 @@ class TestEnrichHikingTrails(TestCase):
         # This controls which hiking trails to fetch and work on
         config.language_code = "en"
         config.country_qid = "Q30"
-        qids = eht.__get_hiking_trails_missing_osm_id__()
-        assert isinstance(qids, Iterable)
-        for qid in qids:
-            assert isinstance(qid, str)
+        eht.__get_hiking_trails_missing_osm_id__()
+        assert eht.number_of_items > 0
 
     def test___get_sv_sweden_hiking_trails_missing_osm_id__(self):
         eht = EnrichHikingTrails()
@@ -38,6 +34,4 @@ class TestEnrichHikingTrails(TestCase):
         config.language_code = "sv"
         config.country_qid = "Q34"
         qids = eht.__get_hiking_trails_missing_osm_id__()
-        assert isinstance(qids, Iterable)
-        for qid in qids:
-            assert isinstance(qid, str)
+        assert eht.number_of_items > 0

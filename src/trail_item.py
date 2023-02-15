@@ -189,7 +189,7 @@ class TrailItem(ProjectBaseModel):
         import questionary
 
         return_ = questionary.select(
-            f"Which of these match '{self.label}' with description '{self.description}'?",
+            f"Which of these match '{self.label}' with description '{self.description}'? (see {self.wikidata_url})",
             choices=self.choices,
         ).ask()  # returns value of selection or None if user cancels
         if isinstance(return_, QuestionaryReturn):
@@ -250,6 +250,8 @@ class TrailItem(ProjectBaseModel):
                     summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
                 )
                 console.print(f"Upload done, see {self.wikidata_url}")
+            else:
+                console.print("Not uploading because config.upload_to_wikidata is False")
 
     @staticmethod
     def __point_in_time_today_statement__():
