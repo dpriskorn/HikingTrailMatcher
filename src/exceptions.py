@@ -8,3 +8,7 @@ class MissingInformationError(BaseException):
 
 class DebugExit(BaseException):
     pass
+
+
+class NoItemError(BaseException):
+    pass

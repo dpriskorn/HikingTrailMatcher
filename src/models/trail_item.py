@@ -23,7 +23,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 import config
 from src.console import console
 from src.enums import ItemEnum, OsmIdSource, Property, Status
-from src.exceptions import SummaryError
+from src.exceptions import NoItemError, SummaryError
 from src.models.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.models.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.models.project_base_model import ProjectBaseModel
@@ -196,6 +196,8 @@ class TrailItem(ProjectBaseModel):
         # present the result to the user to choose from
         import questionary
 
+        if not self.item:
+            raise NoItemError()
         return_ = questionary.select(
             (
                 f"Which of these match '{self.label}' "

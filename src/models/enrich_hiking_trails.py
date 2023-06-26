@@ -15,7 +15,7 @@ from wikibaseintegrator.wbi_login import Login  # type: ignore
 import config
 from src.console import console
 from src.enums import OsmIdSource, Status
-from src.exceptions import MissingInformationError
+from src.exceptions import MissingInformationError, NoItemError
 from src.models.project_base_model import ProjectBaseModel
 from src.models.trail_item import TrailItem
 
@@ -104,9 +104,11 @@ class EnrichHikingTrails(ProjectBaseModel):
         # if trail_item.questionary_return.quit:
         #     break
         if trail_item.questionary_return.could_not_decide:
+            if not trail_item.item:
+                raise NoItemError()
             console.print(
                 f"Try looking at {trail_item.waymarked_hiking_trails_search_url} "
-                f"and see if any fit with {trail_item.wikidata_url}"
+                f"and see if any fit with {trail_item.item.get_entity_url()}"
             )
         else:
             trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
@@ -144,7 +146,7 @@ class EnrichHikingTrails(ProjectBaseModel):
                     self.__lookup_in_waymarked_trails__(trail_item=trail_item)
             else:
                 logger.info(
-                    f"Skipping item with recent last update statement, see {trail_item.wikidata_url}"
+                    f"Skipping item with recent last update statement, see {trail_item.item.get_entity_url()}"
                 )
             count += 1
             logger.debug("end of loop")
