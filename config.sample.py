@@ -1,7 +1,9 @@
 import logging
 
 loglevel = logging.INFO
-upload_to_wikidata = False
+validate_before_upload = True
+upload_to_wikidata = True
+request_timeout = 10
 user_name = ""
 bot_password = ""  # nosec
 user_name_only = "input your user name here"

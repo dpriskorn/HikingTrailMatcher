@@ -1,4 +1,4 @@
-from src.project_base_model import ProjectBaseModel
+from src.models.project_base_model import ProjectBaseModel
 
 
 class QuestionaryReturn(ProjectBaseModel):

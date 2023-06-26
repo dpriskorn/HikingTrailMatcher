@@ -4,36 +4,35 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
+import pydash
 import requests
-from dateutil.tz import tzutc # type: ignore
+from dateutil.parser import parse  # type: ignore
+from dateutil.tz import tzutc  # type: ignore
 from pydantic import validate_arguments
 from questionary import Choice
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
 from wikibaseintegrator.datatypes import ExternalID, Item, Time  # type: ignore
 from wikibaseintegrator.entities import ItemEntity  # type: ignore
-from wikibaseintegrator.models import Reference, References  # type: ignore
+from wikibaseintegrator.models import Claim, Reference, References  # type: ignore
 from wikibaseintegrator.wbi_enums import (  # type: ignore
+    ActionIfExists,
     WikibaseDatePrecision,
     WikibaseSnakType,
 )
-from dateutil.parser import parse # type: ignore
 
 import config
 from src.console import console
 from src.enums import ItemEnum, OsmIdSource, Property, Status
-from src.osm_wikidata_link_result import OsmWikidataLinkResult
-from src.osm_wikidata_link_return import OsmWikidataLinkReturn
-from src.project_base_model import ProjectBaseModel
-from src.questionary_return import QuestionaryReturn
-from src.waymarked_result import WaymarkedResult
-from src.wikidata_time_format import WikidataTimeFormat
+from src.exceptions import SummaryError
+from src.models.osm_wikidata_link_result import OsmWikidataLinkResult
+from src.models.osm_wikidata_link_return import OsmWikidataLinkReturn
+from src.models.project_base_model import ProjectBaseModel
+from src.models.questionary_return import QuestionaryReturn
+from src.models.waymarked_result import WaymarkedResult
+from src.models.wikidata_time_format import WikidataTimeFormat
 
 logger = logging.getLogger(__name__)
 osm_wikidata_link = "OSM Wikidata Link"
-
-
-class DebugExit(BaseException):
-    pass
 
 
 class TrailItem(ProjectBaseModel):
@@ -53,16 +52,16 @@ class TrailItem(ProjectBaseModel):
     already_fetched_item_details: bool = False
     osm_id_source: Optional[OsmIdSource]
     chosen_osm_id: int = 0
-    no_value_point_in_times: List[datetime] = []
-    most_recent_no_value_date: Optional[datetime]
+    last_update: Optional[datetime]
+    summary: str = ""
 
     class Config:
         arbitrary_types_allowed = True
 
     @property
-    def open_in_josm(self):
+    def open_in_josm_urls(self):
         if self.osm_ids:
-            string_list = [str(id) for id in self.osm_ids]
+            string_list = [str(id_) for id_ in self.osm_ids]
             return (
                 f"http://localhost:8111/load_object?"
                 f"new_layer=true&objects={','.join(string_list)}"
@@ -74,13 +73,6 @@ class TrailItem(ProjectBaseModel):
             return (
                 f"https://hiking.waymarkedtrails.org/#search?query={quote(self.label)}"
             )
-        else:
-            return ""
-
-    @property
-    def wikidata_url(self):
-        if self.qid:
-            return f"https://www.wikidata.org/wiki/{self.qid}"
         else:
             return ""
 
@@ -101,7 +93,10 @@ class TrailItem(ProjectBaseModel):
                 title += f", group: {result.group}"
             if result.itinerary:
                 title += f", itinerary: {', '.join(result.itinerary)}"
-            choice = Choice(title=textwrap.fill(title, 100), value=QuestionaryReturn(osm_id=result.id))
+            choice = Choice(
+                title=textwrap.fill(title, 100),
+                value=QuestionaryReturn(osm_id=result.id),
+            )
             self.choices.append(choice)
 
     def __remove_waymaked_result_duplicates__(self):
@@ -119,7 +114,6 @@ class TrailItem(ProjectBaseModel):
                 raise ValueError("self.wbi missing")
             self.item = self.wbi.item.get(self.qid)
             if self.item:
-                # We hardcode swedish for now
                 label = self.item.labels.get(config.language_code)
                 if label:
                     self.label = label.value
@@ -127,36 +121,51 @@ class TrailItem(ProjectBaseModel):
                 if description:
                     self.description = description.value
                 # aliases = item.aliases.get("sv")
-                self.__parse_no_value_statements__()
+                self.__parse_not_found_in_osm_last_update_statement__()
                 self.already_fetched_item_details = True
             else:
                 raise Exception("self.item was None")
 
-    def __parse_no_value_statements__(self):
+    def __parse_not_found_in_osm_last_update_statement__(self):
         try:
-            osm_claims = self.item.claims.get(
-                property=str(Property.OSM_RELATION_ID.value)
-            )
-            for osm_claim in osm_claims:
-                if osm_claim.mainsnak.snaktype == WikibaseSnakType.NO_VALUE:
-                    try:
-                        point_in_time_list = osm_claim.qualifiers.get(
-                            property=str(Property.POINT_IN_TIME.value)
-                        )
-                        for entry in point_in_time_list:
-                            date_string = entry.datavalue["value"]["time"]
-                            logger.info(f"found date: {date_string}")
-                            date = parse(date_string[1:])
-                            logger.info(f"found date: {date}")
-                            self.no_value_point_in_times.append(date)
-                    except KeyError:
-                        raise ValueError(
-                            "No qualifier found for the osm relation id no-value node on this item"
-                        )
+            osm_claims = self.item.claims.get(property=str(Property.NOT_FOUND_IN.value))
+            if len(osm_claims) > 1:
+                print(
+                    f"More than one not found in-statement found on "
+                    f"{self.item.get_entity_url()}. "
+                    "Please go to Wikidata and make sure there is only one and rerun."
+                )
+            else:
+                for osm_claim in osm_claims:
+                    # logger.debug(osm_claim.mainsnak.datavalue)
+                    if osm_claim.mainsnak.snaktype == WikibaseSnakType.KNOWN_VALUE:
+                        value_id = pydash.get(osm_claim.mainsnak.datavalue, "value.id")
+                        if value_id == ItemEnum.OPENSTREETMAP.value:
+                            try:
+                                last_update_list = osm_claim.qualifiers.get(
+                                    property=str(Property.LAST_UPDATE.value)
+                                )
+                                if len(last_update_list) > 1:
+                                    print(
+                                        "Found more than one last update qualifier. Only considering the last one"
+                                    )
+                                for entry in last_update_list:
+                                    date_string = pydash.get(
+                                        entry.datavalue, "value.time"
+                                    )
+                                    logger.info(f"found date: {date_string}")
+                                    date = parse(date_string[1:]).astimezone(tzutc())
+                                    logger.info(f"found date: {date}")
+                                    self.last_update = date
+                            except KeyError:
+                                logger.info(
+                                    "No qualifier found for the not found in OSM-claim. Ignoring it"
+                                )
+                    else:
+                        print("No not found in-property with a know value found")
         except KeyError:
-            logger.info("No osm relation id-values on this item")
+            logger.info("No not found in-claims on this item")
 
-    @validate_arguments()
     def __lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__(
         self,
     ) -> None:
@@ -183,13 +192,16 @@ class TrailItem(ProjectBaseModel):
             Choice(title="None of these match", value=QuestionaryReturn(no_match=True))
         )
 
-    @validate_arguments()
     def __ask_question__(self) -> QuestionaryReturn:
         # present the result to the user to choose from
         import questionary
 
         return_ = questionary.select(
-            f"Which of these match '{self.label}' with description '{self.description}'? (see {self.wikidata_url})",
+            (
+                f"Which of these match '{self.label}' "
+                f"with description '{self.description}'? "
+                f"(see {self.item.get_entity_url()})"
+            ),
             choices=self.choices,
         ).ask()  # returns value of selection or None if user cancels
         if isinstance(return_, QuestionaryReturn):
@@ -205,7 +217,7 @@ class TrailItem(ProjectBaseModel):
         url = (
             f"https://hiking.waymarkedtrails.org/api/v1/list/search?query={search_term}"
         )
-        result = requests.get(url=url)
+        result = requests.get(url=url, timeout=config.request_timeout)
         if result.status_code == 200:
             data = result.json()
             if config.loglevel == logging.DEBUG:
@@ -235,23 +247,35 @@ class TrailItem(ProjectBaseModel):
         if self.item:
             if self.chosen_osm_id:
                 self.__add_osm_id_to_item__()
+                self.summary = "Added match to OpenStreetMap via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
             else:
-                console.print("No match, adding no value = true to WD")
-                claim = ExternalID(
-                    prop_nr=Property.OSM_RELATION_ID.value,
-                    value=None,
-                    qualifiers=[self.__point_in_time_today_statement__()],
-                )
-                # Not documented, see https://github.com/LeMyst/WikibaseIntegrator/blob/9bc58824d2def664c950d53cca845524b93ec051/test/test_wbi_core.py#L199
-                claim.mainsnak.snaktype = WikibaseSnakType.NO_VALUE
-                self.item.add_claims(claims=claim)
+                console.print("No match")
+                self.__add_or_replace_not_found_in_openstreetmap_claim__()
+                self.__remove_osm_relation_no_value_claim__()
+                self.summary = "Added not found in OpenStreetMap via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
             if config.upload_to_wikidata:
-                self.item.write(
-                    summary="Added match to OSM via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
-                )
-                console.print(f"Upload done, see {self.wikidata_url}")
+                if config.validate_before_upload:
+                    print("Please validate that this json looks okay")
+                    console.print(self.item.get_json())
+                    console.input("Press enter to upload or ctrl+c to quit")
+                if self.summary:
+                    self.item.write(summary=self.summary)
+                    console.print(f"Upload done, see {self.item.get_entity_url()}")
+                else:
+                    raise SummaryError()
             else:
-                console.print("Not uploading because config.upload_to_wikidata is False")
+                console.print(
+                    "Not uploading because config.upload_to_wikidata is False"
+                )
+
+    @staticmethod
+    def __last_update_today_statement__():
+        time_object = WikidataTimeFormat()
+        return Time(
+            prop_nr=Property.LAST_UPDATE.value,
+            time=time_object.day,
+            precision=WikibaseDatePrecision.DAY,
+        )
 
     @staticmethod
     def __point_in_time_today_statement__():
@@ -275,7 +299,7 @@ class TrailItem(ProjectBaseModel):
         """Lookup first in OSM
         See documentation here https://osm.wikidata.link/tagged/"""
         url = f"https://osm.wikidata.link/tagged/api/item/{self.qid}"
-        result = requests.get(url)
+        result = requests.get(url, timeout=config.request_timeout)
         if result.status_code == 200:
             data = result.json()
             if config.loglevel == logging.DEBUG:
@@ -353,7 +377,7 @@ class TrailItem(ProjectBaseModel):
             f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
             f"Please download the relations in JOSM and ensure 1-1 link. "
             f"Click here to open in JOSM with remote control "
-            f"{self.open_in_josm}"
+            f"{self.open_in_josm_urls}"
         )
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(multiple_matches=True)
 
@@ -363,12 +387,13 @@ class TrailItem(ProjectBaseModel):
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(single_match=True)
 
     def __add_osm_id_to_item__(self):
-        console.print(f"Got match, adding OSM = {self.chosen_osm_id} to WD")
+        console.print(f"Got match, adding OSM relation id = {self.chosen_osm_id} to WD")
         if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
             self.item.add_claims(
                 claims=ExternalID(
                     prop_nr=Property.OSM_RELATION_ID.value,
                     value=str(self.chosen_osm_id),
+                    references=[self.__create_heuristic_reference__()],
                 )
             )
         else:
@@ -389,37 +414,63 @@ class TrailItem(ProjectBaseModel):
                 )
             )
 
-    @property
-    def __no_value_statement_exists__(self) -> bool:
-        if self.no_value_point_in_times:
-            return True
-        # Default to false
-        return False
-
-    def __find_most_recent_no_value_date__(self):
-        self.most_recent_no_value_date = sorted(
-            self.no_value_point_in_times, reverse=True
-        )[0]
-
     def time_to_check_again(self, testing: bool = False) -> bool:
         if not testing:
             self.__get_item_details__()
-        if self.__no_value_statement_exists__ or testing:
-            if not testing:
-                self.__find_most_recent_no_value_date__()
-            if self.most_recent_no_value_date:
-                latest_date_for_new_check = datetime.now(tz=tzutc()) - timedelta(
-                    days=config.max_days_between_new_check
-                )
-                if latest_date_for_new_check > self.most_recent_no_value_date:
-                    # Maximum number of days passed, let's check again
-                    logger.info("Time to check again")
-                    return True
-                else:
-                    return False
+        if self.last_update:
+            latest_date_for_new_check = datetime.now(tz=tzutc()) - timedelta(
+                days=config.max_days_between_new_check
+            )
+            if latest_date_for_new_check > self.last_update:
+                # Maximum number of days passed, let's check again
+                logger.info("Time to check again")
+                return True
             else:
-                raise ValueError("missing self.most_recent_no_value_date")
+                return False
         else:
-            logger.info("The item is missing a no-value statement")
+            logger.info(
+                "The item is missing a not found in osm claim with a last update qualifier statement"
+            )
             return True
 
+    def __add_or_replace_not_found_in_openstreetmap_claim__(self):
+        claim = Item(
+            prop_nr=Property.NOT_FOUND_IN.value,
+            value=ItemEnum.OPENSTREETMAP.value,
+            qualifiers=[self.__last_update_today_statement__()],
+            references=[self.__create_heuristic_reference__()],
+        )
+        # We want to replace the current statement to avoid a long list of values
+        # which have no value.
+        self.item.add_claims(claims=claim, action_if_exists=ActionIfExists.REPLACE_ALL)
+
+    @staticmethod
+    def __based_on_heuristic_lookup__() -> Claim:
+        return Item(
+            prop_nr=Property.BASED_ON_HEURISTIC.value,
+            value=ItemEnum.LOOKUP_IN_WAYMARKED_TRAILS_API.value,
+        )
+
+    @staticmethod
+    def __based_on_heuristic_user_validation__() -> Claim:
+        return Item(
+            prop_nr=Property.BASED_ON_HEURISTIC.value,
+            value=ItemEnum.USER_VALIDATION.value,
+        )
+
+    def __create_heuristic_reference__(self):
+        return (
+            Reference()
+            .add(self.__based_on_heuristic_lookup__())
+            .add(self.__based_on_heuristic_user_validation__())
+        )
+
+    def __remove_osm_relation_no_value_claim__(self):
+        """This is a cleanup of a not so nice way to model it used earlier"""
+        # Remove no-value claim
+        if self.item.get(Property.OSM_RELATION_ID.value):
+            print(
+                "Removing OSM relation id = no-value claim because "
+                "it was not a way to model the check that the community liked best"
+            )
+            self.item.claims.remove(Property.OSM_RELATION_ID.value)

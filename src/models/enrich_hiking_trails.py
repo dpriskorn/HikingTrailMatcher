@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Optional, Any, List
+from typing import Any, Dict, List, Optional
 
 import requests  # type: ignore
 from pydantic import validate_arguments
@@ -15,15 +15,12 @@ from wikibaseintegrator.wbi_login import Login  # type: ignore
 import config
 from src.console import console
 from src.enums import OsmIdSource, Status
-from src.project_base_model import ProjectBaseModel
-from src.trail_item import TrailItem
+from src.exceptions import MissingInformationError
+from src.models.project_base_model import ProjectBaseModel
+from src.models.trail_item import TrailItem
 
 logging.basicConfig(level=config.loglevel)
 logger = logging.getLogger(__name__)
-
-
-class MissingInformationError(BaseException):
-    pass
 
 
 class EnrichHikingTrails(ProjectBaseModel):
@@ -43,16 +40,15 @@ class EnrichHikingTrails(ProjectBaseModel):
             self.__extract_item_ids__()
 
     def __get_sparql_result__(self):
-        # For now we limit to swedish trails
+        """Get all trails in the specified country and with labels in the specified language"""
         self.setup_wbi()
-        # We hardcode swedish for now
         self.sparql_result = execute_sparql_query(
             f"""
             SELECT DISTINCT ?item ?itemLabel WHERE {{
               ?item wdt:P31 wd:Q2143825;
                     wdt:P17 wd:{config.country_qid}.
               minus{{?item wdt:P402 []}}
-              # Fetch labels for easier debugging
+              # Fetch labels also
               SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{config.language_code}". }}
             }}
             """
@@ -71,7 +67,9 @@ class EnrichHikingTrails(ProjectBaseModel):
         self.item_ids = []
         if self.sparql_result:
             for binding in self.sparql_result["results"]["bindings"]:
-                self.item_ids.append(self.__extract_wcdqs_json_entity_id__(data=binding))
+                self.item_ids.append(
+                    self.__extract_wcdqs_json_entity_id__(data=binding)
+                )
         console.print(f"Got {self.number_of_items} from WDQS")
 
     def add_osm_property_to_items(self):
@@ -132,17 +130,21 @@ class EnrichHikingTrails(ProjectBaseModel):
             console.print(f"Working on {count}/{self.number_of_items}")
             trail_item = TrailItem(qid=qid, wbi=self.wbi)
             if trail_item.time_to_check_again():
-                logger.debug("It's time to check or no relation id is present")
+                logger.debug("It's time to check")
                 trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
                 if (
-                        trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
-                        or trail_item.osm_wikidata_link_return.no_match is True
+                    trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
+                    or trail_item.osm_wikidata_link_return.no_match is True
                 ):
                     logger.info("Falling back to Waymarked Trails API")
+                    # TODO annotate the results here are by downloading their
+                    #  geometry from Overpass API and checking if
+                    #  each of them are in the right
+                    #  1) country 2) region 3) municipality
                     self.__lookup_in_waymarked_trails__(trail_item=trail_item)
             else:
                 logger.info(
-                    f"Skipping item with recent no-value statement, see {trail_item.wikidata_url}"
+                    f"Skipping item with recent last update statement, see {trail_item.wikidata_url}"
                 )
             count += 1
             logger.debug("end of loop")

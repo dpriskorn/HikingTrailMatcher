@@ -1,4 +1,4 @@
-from src.waymarked_result import WaymarkedResult
+from src.models.waymarked_result import WaymarkedResult
 
 
 class TestWaymarkedResult:
@@ -66,6 +66,6 @@ class TestWaymarkedResult:
         assert wr.description is None
 
     def test_number_of_subroutes(self):
-        wr = WaymarkedResult(id=1014050, name="skåneleden") # skåneleden
+        wr = WaymarkedResult(id=1014050, name="skåneleden")  # skåneleden
         wr.get_details()
         assert wr.number_of_subroutes == 6

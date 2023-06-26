@@ -1,12 +1,12 @@
 import logging
-from typing import List, Dict
+from typing import Dict, List
 
 from pydantic import BaseModel
 from requests import Session
 
 import config
 from src.console import console
-from src.subroute import Subroute
+from src.models.subroute import Subroute
 
 
 class WaymarkedResult(BaseModel):
@@ -41,15 +41,17 @@ class WaymarkedResult(BaseModel):
     def __fetch_details__(self):
         url = f"https://hiking.waymarkedtrails.org/api/v1/details/relation/{self.id}"
         # pass the session to this
-        response = self.session.get(url)
-        if response.status_code  == 200:
+        response = self.session.get(url, timeout=config.request_timeout)
+        if response.status_code == 200:
             self.details = response.json()
             logging.info("Got details from Waymarked Trails API")
             if config.loglevel == logging.DEBUG:
                 console.print(self.details)
         else:
-            raise Exception(f"got {response.status_code} from the "
-                            f"Waymarked Trails API when trying to fetch details, see {url}")
+            raise Exception(
+                f"got {response.status_code} from the "
+                f"Waymarked Trails API when trying to fetch details, see {url}"
+            )
 
     def __parse_details__(self):
         """Parse the details into attributes"""
@@ -61,6 +63,7 @@ class WaymarkedResult(BaseModel):
             if subroutes:
                 for route in subroutes:
                     self.subroutes.append(Subroute(**route))
+
     @property
     def number_of_subroutes(self) -> int:
         return len(self.subroutes)

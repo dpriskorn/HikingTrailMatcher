@@ -6,11 +6,15 @@ from wikibaseintegrator import WikibaseIntegrator  # type: ignore
 
 import config
 from src.console import console
-from src.trail_item import TrailItem
-from src.waymarked_result import WaymarkedResult
+from src.models.trail_item import TrailItem
+from src.models.waymarked_result import WaymarkedResult
 
 
 class TestTrailItem(TestCase):
+    last_update_test_item = (
+        "Q7407905"  # small trail in USA which I hope won't change much
+    )
+
     def test___lookup_in_the_waymarked_trails_database__(self):
         trail_item = TrailItem(wbi=WikibaseIntegrator())
         trail_item.__lookup_in_the_waymarked_trails_database__(search_term="Kungsleden")
@@ -73,24 +77,25 @@ class TestTrailItem(TestCase):
         assert trail_item.description == ""
 
     def test___get_item_details_no_value(self):
-        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q7407905")
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid=self.last_update_test_item)
         trail_item.__get_item_details__()
-        assert len(trail_item.no_value_point_in_times) == 1
+        assert trail_item.last_update is not None
+        print(trail_item.last_update)
         assert (
-            datetime(day=24, month=9, year=2022, tzinfo=tzutc())
-            == trail_item.no_value_point_in_times[0]
+            datetime(day=23, month=6, year=2023, tzinfo=tzutc())
+            == trail_item.last_update
         )
 
-    def test_no_value_statement_exists(self):
-        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q7407905")
+    def test_last_update_statement_exists(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid=self.last_update_test_item)
         trail_item.__get_item_details__()
-        assert trail_item.__no_value_statement_exists__ is True
+        assert trail_item.last_update is not None
 
     def test_time_to_check_again(self):
-        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q7407905")
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid=self.last_update_test_item)
         assert trail_item.time_to_check_again() is False
 
     def test_time_to_check_again_lets_check(self):
         trail_item = TrailItem(wbi=WikibaseIntegrator())
-        trail_item.most_recent_no_value_date = datetime(day=24, month=9, year=2020, tzinfo=tzutc())
+        trail_item.last_update = datetime(day=24, month=9, year=2020, tzinfo=tzutc())
         assert trail_item.time_to_check_again(testing=True) is True
