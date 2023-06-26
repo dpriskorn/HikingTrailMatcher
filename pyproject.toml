@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "hiking-trail-matcher"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Script that helps link together hiking trails in Wikidata and OpenStreetMap based on user validation that they are the same."
+authors = ["Dennis Priskorn"]
 license = "GPLv3+"
 readme = "README.md"
 packages = [{include = "hiking_trail_matcher"}]
