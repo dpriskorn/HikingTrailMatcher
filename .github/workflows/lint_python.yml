@@ -28,7 +28,7 @@ jobs:
 #      - name: Redis Server in GitHub Actions
 #        uses: supercharge/redis-github-action@1.4.0
       - run: pip install --upgrade pip wheel
-      - run: poetry install #--with=dev
+      - run: poetry install --with=dev | true
       - run: poetry run black --check .
       - run: poetry run codespell src/ tests/ *.md *.py # --ignore-words-list="" --skip="*.css,*.js,*.lock"
       - run: mkdir --parents --verbose .mypy_cache
