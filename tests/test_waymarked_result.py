@@ -1,7 +1,9 @@
-from src.waymarked_result import WaymarkedResult
+from unittest import TestCase
+
+from src.models.waymarked_result import WaymarkedResult
 
 
-class TestWaymarkedResult:
+class TestWaymarkedResult(TestCase):
     def test_waymarked_result_all_supported_fields(self):
         data = {
             "type": "relation",
@@ -62,10 +64,10 @@ class TestWaymarkedResult:
         wr = WaymarkedResult(id=1014050, name="skåneleden")
         wr.get_details()
         assert wr.official_length == 1300000.0
-        assert wr.mapped_length == 1453719.0
+        assert wr.mapped_length == 1453603
         assert wr.description is None
 
     def test_number_of_subroutes(self):
-        wr = WaymarkedResult(id=1014050, name="skåneleden") # skåneleden
+        wr = WaymarkedResult(id=1014050, name="skåneleden")  # skåneleden
         wr.get_details()
         assert wr.number_of_subroutes == 6

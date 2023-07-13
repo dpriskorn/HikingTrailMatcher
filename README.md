@@ -15,7 +15,8 @@ If yes the tool presents the match for approval to the user.
 If no match is found via OSM Wikidata Link the tool 
 proceeds to lookup the label of the route in the Waymarked Trails database. 
 If the user cannot decide whether they match, they are provided with links to make further investigatation easier.
-If the user choose "no match" then a no-value statement with the current date is uploaded to Wikidata.
+If the user choose "no match" then a no-value statement with the current date is uploaded to Wikidata. 
+If a no value statement already exists a point in time-qualifier will be appended.
 If the user accepts a match it is uploaded to Wikidata at once.
 
 ## Installation and setup

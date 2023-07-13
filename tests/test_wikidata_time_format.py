@@ -1,4 +1,4 @@
-from src.wikidata_time_format import WikidataTimeFormat
+from src.models.wikidata_time_format import WikidataTimeFormat
 
 
 class TestWikidataTimeFormat:

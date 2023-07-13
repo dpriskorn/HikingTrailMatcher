@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "hiking-trail-matcher"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Script that helps link together hiking trails in Wikidata and OpenStreetMap based on user validation that they are the same."
+authors = ["Dennis Priskorn"]
 license = "GPLv3+"
 readme = "README.md"
-packages = [{include = "hiking_trail_matcher"}]
+# packages = [{include = "app.py"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
@@ -15,6 +15,7 @@ rich = "^13.3.1"
 questionary = "^1.10.0"
 python-dateutil = "^2.8.2"
 wikibaseintegrator = "^0.12.3"
+pydash = "^7.0.4"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -28,6 +29,10 @@ mypy = "^1.0.0"
 pre-commit = "^3.0.4"
 pytest = "^7.2.1"
 pyupgrade = "^3.3.1"
+types-python-dateutil = "^2.8.19.13"
+types-requests = "^2.31.0.1"
+ruff = "^0.0.278"
+safety = "^2.3.5"
 
 [build-system]
 requires = ["poetry-core"]
