@@ -1,14 +1,8 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-import requests  # type: ignore
 from pydantic import validate_arguments
-from wikibaseintegrator import WikibaseIntegrator, wbi_config  # type: ignore
-from wikibaseintegrator.datatypes import ExternalID, Item, Time  # type: ignore
-from wikibaseintegrator.wbi_enums import (  # type: ignore
-    WikibaseDatePrecision,
-    WikibaseSnakType,
-)
+from wikibaseintegrator import WikibaseIntegrator  # type: ignore
 from wikibaseintegrator.wbi_helpers import execute_sparql_query  # type: ignore
 from wikibaseintegrator.wbi_login import Login  # type: ignore
 
@@ -40,7 +34,8 @@ class EnrichHikingTrails(ProjectBaseModel):
             self.__extract_item_ids__()
 
     def __get_sparql_result__(self):
-        """Get all trails in the specified country and with labels in the specified language"""
+        """Get all trails in the specified country and
+        with labels in the specified language"""
         self.setup_wbi()
         self.sparql_result = execute_sparql_query(
             f"""
@@ -49,7 +44,8 @@ class EnrichHikingTrails(ProjectBaseModel):
                     wdt:P17 wd:{config.country_qid}.
               minus{{?item wdt:P402 []}}
               # Fetch labels also
-              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{config.language_code}". }}
+              SERVICE wikibase:label
+              {{ bd:serviceParam wikibase:language "{config.language_code}". }}
             }}
             """
         )
@@ -58,7 +54,8 @@ class EnrichHikingTrails(ProjectBaseModel):
     def __extract_wcdqs_json_entity_id__(
         self, data: Dict, sparql_variable: str = "item"
     ) -> str:
-        """We default to "item" as sparql value because it is customary in the Wikibase ecosystem"""
+        """We default to "item" as sparql value because
+        it is customary in the Wikibase ecosystem"""
         return str(data[sparql_variable]["value"].replace(self.rdf_entity_prefix, ""))
 
     @validate_arguments
@@ -94,7 +91,7 @@ class EnrichHikingTrails(ProjectBaseModel):
             trail_item.__ask_user_to_approve_match_from_osm_wikidata_link__()
         else:
             if trail_item.osm_wikidata_link_return.no_match:
-                console.print(f"Got no match from OSM Wikidata Link API")
+                console.print("Got no match from OSM Wikidata Link API")
         # Return mutated object
         return trail_item
 
@@ -147,7 +144,8 @@ class EnrichHikingTrails(ProjectBaseModel):
                     self.__lookup_in_waymarked_trails__(trail_item=trail_item)
             else:
                 logger.info(
-                    f"Skipping item with recent last update statement, see {trail_item.item.get_entity_url()}"
+                    f"Skipping item with recent last update statement, "
+                    f"see {trail_item.item.get_entity_url()}"
                 )
             count += 1
             logger.debug("end of loop")

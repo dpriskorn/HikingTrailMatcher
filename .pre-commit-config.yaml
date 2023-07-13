@@ -7,6 +7,17 @@ repos:
     entry: black .
     types: [python]
 
+  - id: ruff
+    name: ruff
+    language: system
+    entry: ruff
+    args:
+      # Tell ruff to fix sorting of imports
+      - "--fix"
+      - "--format=github"
+      - "--target-version=py37"
+    types: [python]
+
   - id: codespell
     name: codespell
     language: system

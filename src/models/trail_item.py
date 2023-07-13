@@ -147,7 +147,8 @@ class TrailItem(ProjectBaseModel):
                                 )
                                 if len(last_update_list) > 1:
                                     print(
-                                        "Found more than one last update qualifier. Only considering the last one"
+                                        "Found more than one last update qualifier. "
+                                        "Only considering the last one"
                                     )
                                 for entry in last_update_list:
                                     date_string = pydash.get(
@@ -159,7 +160,8 @@ class TrailItem(ProjectBaseModel):
                                     self.last_update = date
                             except KeyError:
                                 logger.info(
-                                    "No qualifier found for the not found in OSM-claim. Ignoring it"
+                                    "No qualifier found for the not "
+                                    "found in OSM-claim. Ignoring it"
                                 )
                     else:
                         print("No not found in-property with a know value found")
@@ -217,7 +219,8 @@ class TrailItem(ProjectBaseModel):
         if not search_term:
             raise ValueError("search_term was empty")
         url = (
-            f"https://hiking.waymarkedtrails.org/api/v1/list/search?query={search_term}"
+            f"https://hiking.waymarkedtrails.org/api/"
+            f"v1/list/search?query={search_term}"
         )
         result = requests.get(url=url, timeout=config.request_timeout)
         if result.status_code == 200:
@@ -233,7 +236,8 @@ class TrailItem(ProjectBaseModel):
         [result.get_details() for result in self.waymarked_results]
 
     def fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user(self):
-        """We collect all the information and help the user choose the right match"""
+        """We collect all the information and help
+        the user choose the right match"""
         if not self.wbi:
             raise ValueError("self.wbi missing")
         self.__get_item_details__()
@@ -249,12 +253,20 @@ class TrailItem(ProjectBaseModel):
         if self.item:
             if self.chosen_osm_id:
                 self.__add_osm_id_to_item__()
-                self.summary = "Added match to OpenStreetMap via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
+                self.summary = (
+                    "Added match to OpenStreetMap via "
+                    "the [[Wikidata:Tools/hiking trail matcher"
+                    "|hiking trail matcher]]"
+                )
             else:
                 console.print("No match")
                 self.__add_or_replace_not_found_in_openstreetmap_claim__()
                 self.__remove_osm_relation_no_value_claim__()
-                self.summary = "Added not found in OpenStreetMap via the [[Wikidata:Tools/hiking trail matcher|hiking trail matcher]]"
+                self.summary = (
+                    "Added not found in OpenStreetMap via "
+                    "the [[Wikidata:Tools/hiking trail"
+                    " matcher|hiking trail matcher]]"
+                )
             if config.upload_to_wikidata:
                 if config.validate_before_upload:
                     print("Please validate that this json looks okay")
@@ -346,7 +358,10 @@ class TrailItem(ProjectBaseModel):
                 f"'{self.description}' in Wikidata?(Y/n)"
             )
         else:
-            question = f"Does the above match '{self.label}' (description missing) in Wikidata?(Y/n)"
+            question = (
+                f"Does the above match '{self.label}' "
+                f"(description missing) in Wikidata?(Y/n)"
+            )
         answer = console.input(question)
         if answer == "" or answer.lower() == "y":
             # we got enter/yes
@@ -389,7 +404,9 @@ class TrailItem(ProjectBaseModel):
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(single_match=True)
 
     def __add_osm_id_to_item__(self):
-        console.print(f"Got match, adding OSM relation id = {self.chosen_osm_id} to WD")
+        console.print(
+            f"Got match, adding " f"OSM relation id = {self.chosen_osm_id} to WD"
+        )
         if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
             self.item.add_claims(
                 claims=ExternalID(
@@ -431,7 +448,8 @@ class TrailItem(ProjectBaseModel):
                 return False
         else:
             logger.info(
-                "The item is missing a not found in osm claim with a last update qualifier statement"
+                "The item is missing a not found in osm claim "
+                "with a last update qualifier statement"
             )
             return True
 
