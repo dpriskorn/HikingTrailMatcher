@@ -470,7 +470,7 @@ class TrailItem(ProjectBaseModel):
     def __remove_osm_relation_no_value_claim__(self):
         """This is a cleanup of a not so nice way to model it used earlier"""
         # Remove no-value claim
-        if self.item.get(Property.OSM_RELATION_ID.value):
+        if self.item.claims.get(Property.OSM_RELATION_ID.value):
             print(
                 "Removing OSM relation id = no-value claim because "
                 "it was not a way to model the check that the community liked best"
