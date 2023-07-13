@@ -30,4 +30,5 @@ jobs:
       - run: mkdir --parents --verbose .mypy_cache
       - run: poetry run mypy --ignore-missing-imports --install-types --non-interactive .
       - run: poetry run safety check
+      - run: cp config.sample.py config.py
       - run: poetry run pytest .
