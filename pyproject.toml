@@ -5,7 +5,7 @@ description = "Script that helps link together hiking trails in Wikidata and Ope
 authors = ["Dennis Priskorn"]
 license = "GPLv3+"
 readme = "README.md"
-packages = [{include = "hiking_trail_matcher"}]
+# packages = [{include = "app.py"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
