@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List
 
+from OSMPythonTools.api import Api  # type: ignore
 from pydantic import BaseModel
 from requests import Session
 
@@ -78,3 +79,15 @@ class WaymarkedResult(BaseModel):
             return ", ".join(self.__names_of_subroutes__)
         else:
             return ""
+
+    @property
+    def already_has_wikidata_tag(self) -> bool:
+        """This check uses the Openstreetmap API because it is fast"""
+        api = Api()
+        relation = api.query(f"relation/{self.id}")
+        wikidata = relation.tag("wikidata")
+        logging.debug(f"wikidata tag: {wikidata}")
+        if wikidata is None:
+            return False
+        else:
+            return True

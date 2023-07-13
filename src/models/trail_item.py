@@ -78,26 +78,28 @@ class TrailItem(ProjectBaseModel):
 
     def __convert_waymarked_results_to_choices__(self):
         for result in self.waymarked_results:
-            title = f"{result.name}"
-            if result.id:
-                title += f" ({result.id})"
-            if result.ref:
-                title += f", ref: {result.ref}"
-            if result.number_of_subroutes:
-                title += f", subroutes #: {result.number_of_subroutes}"
-            if result.names_of_subroutes_as_string:
-                title += f", subroutes: {result.names_of_subroutes_as_string}"
-            # if result.description:
-            #     title += f", description: {result.description}"
-            if result.group:
-                title += f", group: {result.group}"
-            if result.itinerary:
-                title += f", itinerary: {', '.join(result.itinerary)}"
-            choice = Choice(
-                title=textwrap.fill(title, 100),
-                value=QuestionaryReturn(osm_id=result.id),
-            )
-            self.choices.append(choice)
+            # We only want choices which are missing a Wikidata tag
+            if not result.already_has_wikidata_tag:
+                title = f"{result.name}"
+                if result.id:
+                    title += f" ({result.id})"
+                if result.ref:
+                    title += f", ref: {result.ref}"
+                if result.number_of_subroutes:
+                    title += f", subroutes #: {result.number_of_subroutes}"
+                if result.names_of_subroutes_as_string:
+                    title += f", subroutes: {result.names_of_subroutes_as_string}"
+                # if result.description:
+                #     title += f", description: {result.description}"
+                if result.group:
+                    title += f", group: {result.group}"
+                if result.itinerary:
+                    title += f", itinerary: {', '.join(result.itinerary)}"
+                choice = Choice(
+                    title=textwrap.fill(title, 100),
+                    value=QuestionaryReturn(osm_id=result.id),
+                )
+                self.choices.append(choice)
 
     def __remove_waymaked_result_duplicates__(self):
         self.waymarked_results = list(set(self.waymarked_results))
@@ -166,7 +168,7 @@ class TrailItem(ProjectBaseModel):
                     else:
                         print("No not found in-property with a know value found")
         except KeyError:
-            logger.info("No not found in-claims on this item")
+            logger.info("No 'not found in'-claims on this item")
 
     def __lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__(
         self,
@@ -253,6 +255,7 @@ class TrailItem(ProjectBaseModel):
         if self.item:
             if self.chosen_osm_id:
                 self.__add_osm_id_to_item__()
+                self.__remove_not_found_in_osm_claim__()
                 self.summary = (
                     "Added match to OpenStreetMap via "
                     "the [[Wikidata:Tools/hiking trail matcher"
@@ -413,7 +416,9 @@ class TrailItem(ProjectBaseModel):
                     prop_nr=Property.OSM_RELATION_ID.value,
                     value=str(self.chosen_osm_id),
                     references=[self.__create_heuristic_reference__()],
-                )
+                ),
+                # Replace no-value statement if it exists
+                action_if_exists=ActionIfExists.REPLACE_ALL,
             )
         else:
             # We got it from OSM Wikidata Link so add a reference
@@ -430,7 +435,9 @@ class TrailItem(ProjectBaseModel):
                     prop_nr=Property.OSM_RELATION_ID.value,
                     value=str(self.chosen_osm_id),
                     references=References().add(reference=reference),
-                )
+                ),
+                # Replace no-value statement if it exists
+                action_if_exists=ActionIfExists.REPLACE_ALL,
             )
 
     def time_to_check_again(self, testing: bool = False) -> bool:
@@ -497,3 +504,21 @@ class TrailItem(ProjectBaseModel):
                 self.item.claims.remove(Property.OSM_RELATION_ID.value)
         except KeyError:
             logger.debug("No OSM_RELATION_ID found on this item to clean up")
+
+    def __remove_not_found_in_osm_claim__(self):
+        try:
+            claims = self.item.claims.get(Property.NOT_FOUND_IN.value)
+            if claims:
+                if len(claims) > 1:
+                    # todo iterate and remove only the right one
+                    console.print(claims)
+                    raise NotImplementedError(
+                        "removing only one of "
+                        "multiple not-found-in-"
+                        "statements is not supported yet"
+                    )
+                else:
+                    logger.info("Removing 'not found in'-claim")
+                    self.item.claims.remove(Property.OSM_RELATION_ID.value)
+        except KeyError:
+            logger.debug("No NOT_FOUND_IN found on this item to remove")
