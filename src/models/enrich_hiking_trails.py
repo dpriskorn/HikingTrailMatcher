@@ -34,13 +34,14 @@ class EnrichHikingTrails(ProjectBaseModel):
             self.__extract_item_ids__()
 
     def __get_sparql_result__(self):
-        """Get all trails in the specified country and
+        """Get all hiking trails and subtrails in the specified country and
         with labels in the specified language"""
         self.setup_wbi()
+        # Support all subclasses of Q2143825 hiking trail
         self.sparql_result = execute_sparql_query(
             f"""
             SELECT DISTINCT ?item ?itemLabel WHERE {{
-              ?item wdt:P31 wd:Q2143825;
+              ?item wdt:P31/wdt:P279* wd:Q2143825;
                     wdt:P17 wd:{config.country_qid}.
               minus{{?item wdt:P402 []}}
               # Fetch labels also
