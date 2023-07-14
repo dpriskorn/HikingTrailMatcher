@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from urllib.parse import quote
 
 import pydash
+import questionary
 import requests
 from dateutil.parser import parse  # type: ignore
 from dateutil.tz import tzutc  # type: ignore
@@ -197,9 +198,8 @@ class TrailItem(ProjectBaseModel):
         )
 
     def __ask_question__(self) -> QuestionaryReturn:
+        """This presents a choice and returns"""
         # present the result to the user to choose from
-        import questionary
-
         if not self.item:
             raise NoItemError()
         return_ = questionary.select(
@@ -245,7 +245,6 @@ class TrailItem(ProjectBaseModel):
         self.__get_item_details__()
         self.__lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__()
 
-    # @validate_arguments()
     def enrich_wikidata(self):
         """We enrich Wikidata based on the choice of the user"""
         if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
@@ -522,3 +521,15 @@ class TrailItem(ProjectBaseModel):
                     self.item.claims.remove(Property.OSM_RELATION_ID.value)
         except KeyError:
             logger.debug("No NOT_FOUND_IN found on this item to remove")
+
+    def try_matching_again(self):
+        if self.questionary_return.could_not_decide is True:
+            result = questionary.select(
+                "Do you want to match again after manually ",
+                choices=[
+                    Choice(title="Yes", value=True),
+                    Choice(title="No", value=False),
+                ],
+            ).ask()
+            if result:
+                self.questionary_return = self.__ask_question__()

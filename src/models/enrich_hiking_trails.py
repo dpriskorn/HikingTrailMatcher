@@ -107,7 +107,7 @@ class EnrichHikingTrails(ProjectBaseModel):
                 f"Try looking at {trail_item.waymarked_hiking_trails_search_url} "
                 f"and see if any fit with {trail_item.item.get_entity_url()}"
             )
-            # TODO help the user match again
+            trail_item.try_matching_again()
         else:
             trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
             trail_item.enrich_wikidata()
