@@ -31,12 +31,11 @@ class TestTrailItem(TestCase):
 
     def test_convert_to_choices(self):
         trail_item = TrailItem(wbi=WikibaseIntegrator())
-        trail_item.waymarked_results.append(WaymarkedResult(name="test", id=1))
-        trail_item.waymarked_results.append(WaymarkedResult(name="test2", id=2))
+        trail_item.waymarked_results.append(WaymarkedResult(name="test", id=10528596))
         trail_item.__convert_waymarked_results_to_choices__()
-        assert len(trail_item.choices) == 2
-        assert trail_item.choices[0].title == "test (1)"
-        assert trail_item.choices[0].value.osm_id == 1
+        assert len(trail_item.choices) == 1
+        assert trail_item.choices[0].title == "test (10528596)"
+        assert trail_item.choices[0].value.osm_id == 10528596
 
     def test_lookup_in_osm_wikidata_link_api_no_match(self):
         trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q820225")
