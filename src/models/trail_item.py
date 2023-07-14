@@ -496,7 +496,7 @@ class TrailItem(ProjectBaseModel):
         # Remove no-value claim
         try:
             if self.item.claims.get(Property.OSM_RELATION_ID.value):
-                print(
+                logger.info(
                     "Removing OSM relation id = no-value claim because "
                     "it was not a way to model the check that the community liked best"
                 )
