@@ -24,7 +24,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 import config
 from src.console import console
 from src.enums import ItemEnum, OsmIdSource, Property, Status
-from src.exceptions import NoItemError, SummaryError
+from src.exceptions import NoItemError, SummaryError, WBIError
 from src.models.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.models.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.models.project_base_model import ProjectBaseModel
@@ -58,6 +58,18 @@ class TrailItem(ProjectBaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+    @property
+    def has_osm_way_property(self) -> bool:
+        try:
+            if not self.item:
+                raise NoItemError()
+            if self.item.claims.get(property="P10689"):
+                return True
+            else:
+                raise WBIError("This should never happen")
+        except KeyError:
+            return False
 
     @property
     def open_in_josm_urls(self):
@@ -175,7 +187,14 @@ class TrailItem(ProjectBaseModel):
         self,
     ) -> None:
         if not self.label:
-            raise ValueError("self.label was empty")
+            if not self.item:
+                raise NoItemError()
+            print(
+                f"Skipping {self.item.get_entity_url()} because self.label "
+                f"was empty in the chosen language"
+            )
+            console.input("Press enter to continue")
+            return
         if not isinstance(self.label, str):
             raise TypeError("self.label was not a str")
         logger.info(f"looking up: {self.label}")
@@ -243,7 +262,13 @@ class TrailItem(ProjectBaseModel):
         if not self.wbi:
             raise ValueError("self.wbi missing")
         self.__get_item_details__()
-        self.__lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__()
+        if not self.has_osm_way_property:
+            self.__lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__()
+        else:
+            console.print(
+                f"Skipping item {self.item.get_entity_url()} "
+                f"which already has a OSM way property"
+            )
 
     def enrich_wikidata(self):
         """We enrich Wikidata based on the choice of the user"""
@@ -252,6 +277,7 @@ class TrailItem(ProjectBaseModel):
         else:
             self.chosen_osm_id = self.osm_wikidata_link_results[0].id
         if self.item:
+            enrich = False
             if self.chosen_osm_id:
                 self.__add_osm_id_to_item__()
                 self.__remove_not_found_in_osm_claim__()
@@ -260,29 +286,35 @@ class TrailItem(ProjectBaseModel):
                     "the [[Wikidata:Tools/hiking trail matcher"
                     "|hiking trail matcher]]"
                 )
+                enrich = True
             else:
-                console.print("No match")
-                self.__add_or_replace_not_found_in_openstreetmap_claim__()
-                self.__remove_osm_relation_no_value_claim__()
-                self.summary = (
-                    "Added not found in OpenStreetMap via "
-                    "the [[Wikidata:Tools/hiking trail"
-                    " matcher|hiking trail matcher]]"
-                )
-            if config.upload_to_wikidata:
-                if config.validate_before_upload:
-                    print("Please validate that this json looks okay")
-                    console.print(self.item.get_json())
-                    console.input("Press enter to upload or ctrl+c to quit")
-                if self.summary:
-                    self.item.write(summary=self.summary)
-                    console.print(f"Upload done, see {self.item.get_entity_url()}")
+                if self.questionary_return.no_match is True:
+                    console.print("No match")
+                    self.__add_or_replace_not_found_in_openstreetmap_claim__()
+                    self.__remove_osm_relation_no_value_claim__()
+                    self.summary = (
+                        "Added not found in OpenStreetMap via "
+                        "the [[Wikidata:Tools/hiking trail"
+                        " matcher|hiking trail matcher]]"
+                    )
+                    enrich = True
                 else:
-                    raise SummaryError()
-            else:
-                console.print(
-                    "Not uploading because config.upload_to_wikidata is False"
-                )
+                    logging.info("No enriching to be done")
+            if enrich is True:
+                if config.upload_to_wikidata:
+                    if config.validate_before_upload:
+                        print("Please validate that this json looks okay")
+                        console.print(self.item.get_json())
+                        console.input("Press enter to upload or ctrl+c to quit")
+                    if self.summary:
+                        self.item.write(summary=self.summary)
+                        console.print(f"Upload done, see {self.item.get_entity_url()}")
+                    else:
+                        raise SummaryError()
+                else:
+                    console.print(
+                        "Not uploading because config.upload_to_wikidata is False"
+                    )
 
     @staticmethod
     def __last_update_today_statement__():
