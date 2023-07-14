@@ -202,7 +202,19 @@ class TrailItem(ProjectBaseModel):
         self.__remove_waymaked_result_duplicates__()
         self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
-        self.questionary_return = self.__ask_question__()
+        if len(self.choices) > 2:
+            self.questionary_return = self.__ask_question__()
+        else:
+            if not self.item:
+                raise NoItemError()
+            console.print(
+                f"No choices from Waymarked Trials "
+                f"API = no match for "
+                f"{self.item.get_entity_url()}"
+            )
+            return_ = QuestionaryReturn()
+            return_.no_match = True
+            self.questionary_return = return_
 
     def __prepare_choices__(self):
         self.__convert_waymarked_results_to_choices__()
