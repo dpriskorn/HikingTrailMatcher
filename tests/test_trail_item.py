@@ -98,3 +98,13 @@ class TestTrailItem(TestCase):
         trail_item = TrailItem(wbi=WikibaseIntegrator())
         trail_item.last_update = datetime(day=24, month=9, year=2020, tzinfo=tzutc())
         assert trail_item.time_to_check_again(testing=True) is True
+
+    def test_has_osm_way_property_false(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid=self.last_update_test_item)
+        trail_item.__get_item_details__()
+        assert trail_item.has_osm_way_property is False
+
+    def test_has_osm_way_property_true(self):
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q1692894")
+        trail_item.__get_item_details__()
+        assert trail_item.has_osm_way_property is True

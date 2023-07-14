@@ -12,3 +12,7 @@ class DebugExit(BaseException):
 
 class NoItemError(BaseException):
     pass
+
+
+class WBIError(BaseException):
+    pass
