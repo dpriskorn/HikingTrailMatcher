@@ -57,7 +57,7 @@ class TestTrailItem(TestCase):
         assert len(trail_item.osm_wikidata_link_results) == 1
 
     def test_lookup_in_osm_wikidata_link_api_multiple_relations(self):
-        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q151653")
+        trail_item = TrailItem(wbi=WikibaseIntegrator(), qid="Q151653", testing=True)
         trail_item.lookup_using_osm_wikidata_link()
         console.print(trail_item.osm_wikidata_link_return.dict())
         assert trail_item.osm_wikidata_link_return.multiple_matches is True
