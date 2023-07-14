@@ -320,7 +320,11 @@ class TrailItem(ProjectBaseModel):
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
                         self.item.write(summary=self.summary)
-                        console.print(f"Upload done, see {self.item.get_entity_url()}")
+                        console.print(
+                            f"Upload done, see {self.item.get_entity_url()} "
+                            f"and https://hiking.waymarkedtrails.org/"
+                            f"#route?id={self.questionary_return.osm_id}"
+                        )
                     else:
                         raise SummaryError()
                 else:
@@ -379,7 +383,7 @@ class TrailItem(ProjectBaseModel):
                 self.__populate_osm_ids__()
                 # Act on it
                 if len(self.osm_ids) > 1:
-                    self.__hanndle_multiple_matches__()
+                    self.__handle_multiple_matches__()
                 elif len(self.osm_ids) == 1:
                     self.__handle_single_match__()
                 else:
@@ -434,7 +438,7 @@ class TrailItem(ProjectBaseModel):
                 # the opening in JOSM and logic here
                 self.osm_ids.append(item.get("id"))
 
-    def __hanndle_multiple_matches__(self):
+    def __handle_multiple_matches__(self):
         # we got multiple matches so we ask the user to fix the situation in JOSM
         console.print(
             f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
@@ -442,6 +446,7 @@ class TrailItem(ProjectBaseModel):
             f"Click here to open in JOSM with remote control "
             f"{self.open_in_josm_urls}"
         )
+        console.input("Press enter to continue")
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(multiple_matches=True)
 
     def __handle_single_match__(self):
