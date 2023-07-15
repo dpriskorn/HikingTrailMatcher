@@ -55,6 +55,7 @@ class TrailItem(ProjectBaseModel):
     chosen_osm_id: int = 0
     last_update: Optional[datetime]
     summary: str = ""
+    testing: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -74,7 +75,7 @@ class TrailItem(ProjectBaseModel):
     @property
     def open_in_josm_urls(self):
         if self.osm_ids:
-            string_list = [str(id_) for id_ in self.osm_ids]
+            string_list = [f"r{str(id_)}" for id_ in self.osm_ids]
             return (
                 f"http://localhost:8111/load_object?"
                 f"new_layer=true&objects={','.join(string_list)}"
@@ -193,7 +194,8 @@ class TrailItem(ProjectBaseModel):
                 f"Skipping {self.item.get_entity_url()} because self.label "
                 f"was empty in the chosen language"
             )
-            console.input("Press enter to continue")
+            if not self.testing:
+                console.input("Press enter to continue")
             return
         if not isinstance(self.label, str):
             raise TypeError("self.label was not a str")
@@ -446,7 +448,8 @@ class TrailItem(ProjectBaseModel):
             f"Click here to open in JOSM with remote control "
             f"{self.open_in_josm_urls}"
         )
-        console.input("Press enter to continue")
+        if not self.testing:
+            console.input("Press enter to continue")
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(multiple_matches=True)
 
     def __handle_single_match__(self):
