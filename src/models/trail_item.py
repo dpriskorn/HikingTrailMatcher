@@ -55,6 +55,7 @@ class TrailItem(ProjectBaseModel):
     chosen_osm_id: int = 0
     last_update: Optional[datetime]
     summary: str = ""
+    testing: bool = False
 
     class Config:
         arbitrary_types_allowed = True
@@ -74,7 +75,7 @@ class TrailItem(ProjectBaseModel):
     @property
     def open_in_josm_urls(self):
         if self.osm_ids:
-            string_list = [str(id_) for id_ in self.osm_ids]
+            string_list = [f"r{str(id_)}" for id_ in self.osm_ids]
             return (
                 f"http://localhost:8111/load_object?"
                 f"new_layer=true&objects={','.join(string_list)}"
@@ -193,7 +194,8 @@ class TrailItem(ProjectBaseModel):
                 f"Skipping {self.item.get_entity_url()} because self.label "
                 f"was empty in the chosen language"
             )
-            console.input("Press enter to continue")
+            if not self.testing:
+                console.input("Press enter to continue")
             return
         if not isinstance(self.label, str):
             raise TypeError("self.label was not a str")
@@ -202,7 +204,19 @@ class TrailItem(ProjectBaseModel):
         self.__remove_waymaked_result_duplicates__()
         self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
-        self.questionary_return = self.__ask_question__()
+        if len(self.choices) > 2:
+            self.questionary_return = self.__ask_question__()
+        else:
+            if not self.item:
+                raise NoItemError()
+            console.print(
+                f"No choices from Waymarked Trials "
+                f"API = no match for "
+                f"{self.item.get_entity_url()}"
+            )
+            return_ = QuestionaryReturn()
+            return_.no_match = True
+            self.questionary_return = return_
 
     def __prepare_choices__(self):
         self.__convert_waymarked_results_to_choices__()
@@ -308,7 +322,11 @@ class TrailItem(ProjectBaseModel):
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
                         self.item.write(summary=self.summary)
-                        console.print(f"Upload done, see {self.item.get_entity_url()}")
+                        console.print(
+                            f"Upload done, see {self.item.get_entity_url()} "
+                            f"and https://hiking.waymarkedtrails.org/"
+                            f"#route?id={self.questionary_return.osm_id}"
+                        )
                     else:
                         raise SummaryError()
                 else:
@@ -367,7 +385,7 @@ class TrailItem(ProjectBaseModel):
                 self.__populate_osm_ids__()
                 # Act on it
                 if len(self.osm_ids) > 1:
-                    self.__hanndle_multiple_matches__()
+                    self.__handle_multiple_matches__()
                 elif len(self.osm_ids) == 1:
                     self.__handle_single_match__()
                 else:
@@ -422,7 +440,7 @@ class TrailItem(ProjectBaseModel):
                 # the opening in JOSM and logic here
                 self.osm_ids.append(item.get("id"))
 
-    def __hanndle_multiple_matches__(self):
+    def __handle_multiple_matches__(self):
         # we got multiple matches so we ask the user to fix the situation in JOSM
         console.print(
             f"We got {len(self.osm_ids)} matches from {osm_wikidata_link}. "
@@ -430,6 +448,8 @@ class TrailItem(ProjectBaseModel):
             f"Click here to open in JOSM with remote control "
             f"{self.open_in_josm_urls}"
         )
+        if not self.testing:
+            console.input("Press enter to continue")
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(multiple_matches=True)
 
     def __handle_single_match__(self):
