@@ -286,7 +286,8 @@ class TrailItem(ProjectBaseModel):
         if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
             self.chosen_osm_id = self.questionary_return.osm_id
         else:
-            self.chosen_osm_id = self.osm_wikidata_link_results[0].id
+            if self.osm_wikidata_link_results:
+                self.chosen_osm_id = self.osm_wikidata_link_results[0].id
         if self.item:
             enrich = False
             if self.chosen_osm_id:
@@ -298,6 +299,9 @@ class TrailItem(ProjectBaseModel):
                     "the [[Wikidata:Tools/hiking trail matcher"
                     "|hiking trail matcher]]"
                 )
+                # self.item = item
+                if not self.__verify_P402_claim_exists__(self.item):
+                    raise Exception("No P402 claim found on the item")
                 enrich = True
             else:
                 if self.questionary_return.no_match is True:
@@ -319,16 +323,12 @@ class TrailItem(ProjectBaseModel):
                         console.print(self.item.get_json())
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
-                        item = self.item.write(summary=self.summary)
-                        if self.__verify_successful_upload__(item):
-                            console.print(
-                                f"Upload done, see {self.item.get_entity_url()} "
-                                f"and https://hiking.waymarkedtrails.org/"
-                                f"#route?id={self.questionary_return.osm_id}"
-                            )
-                            exit()
-                        else:
-                            raise Exception("Upload failed")
+                        self.item.write(summary=self.summary)
+                        console.print(
+                            f"Upload done, see {self.item.get_entity_url()} "
+                            f"and https://hiking.waymarkedtrails.org/"
+                            f"#route?id={self.questionary_return.osm_id}"
+                        )
                     else:
                         raise SummaryError()
                 else:
@@ -459,31 +459,39 @@ class TrailItem(ProjectBaseModel):
         logger.info("We only got one relation that matches")
         self.osm_wikidata_link_return = OsmWikidataLinkReturn(single_match=True)
 
-    def __add_osm_id_to_item__(self):
+    @staticmethod
+    def __stated_in_osm__():
+        return Item(
+            prop_nr=Property.STATED_IN.value,
+            value=str(ItemEnum.OPENSTREETMAP.value),
+        )
+
+    def __add_osm_id_to_item__(self) -> None:
         console.print(
             f"Got match, adding " f"OSM relation id = {self.chosen_osm_id} to WD"
         )
+        if not self.item:
+            raise NoItemError()
         if self.osm_id_source == OsmIdSource.QUESTIONNAIRE:
-            self.item.add_claims(
-                claims=ExternalID(
-                    prop_nr=Property.OSM_RELATION_ID.value,
-                    value=str(self.chosen_osm_id),
-                    references=[self.__create_heuristic_reference__()],
-                ),
+            self.item.claims = self.item.claims.add(
+                claims=[
+                    ExternalID(
+                        prop_nr=Property.OSM_RELATION_ID.value,
+                        value=str(self.chosen_osm_id),
+                        references=References().add(
+                            reference=self.__create_heuristic_reference__()
+                        ),
+                    )
+                ],
                 # Replace no-value statement if it exists
-                action_if_exists=ActionIfExists.REPLACE_ALL,
+                # action_if_exists=ActionIfExists.REPLACE_ALL,
             )
         else:
             # We got it from OSM Wikidata Link so add a reference
             reference = Reference()
-            reference.add(
-                Item(
-                    prop_nr=Property.STATED_IN.value,
-                    value=str(ItemEnum.OPENSTREETMAP.value),
-                )
-            )
+            reference.add(self.__stated_in_osm__())
             reference.add(self.__retrieved_today_statement__())
-            self.item.add_claims(
+            self.item.claims = self.item.claims.add(
                 claims=ExternalID(
                     prop_nr=Property.OSM_RELATION_ID.value,
                     value=str(self.chosen_osm_id),
@@ -492,6 +500,8 @@ class TrailItem(ProjectBaseModel):
                 # Replace no-value statement if it exists
                 action_if_exists=ActionIfExists.REPLACE_ALL,
             )
+        if not self.__verify_P402_claim_exists__(self.item):
+            raise Exception("No P402 claim found on the item")
 
     def time_to_check_again(self, testing: bool = False) -> bool:
         if not testing:
@@ -558,13 +568,15 @@ class TrailItem(ProjectBaseModel):
         except KeyError:
             logger.debug("No OSM_RELATION_ID found on this item to clean up")
 
-    def __remove_not_found_in_osm_claim__(self):
+    def __remove_not_found_in_osm_claim__(self) -> None:
+        if not self.item:
+            raise NoItemError()
         try:
-            claims = self.item.claims.get(Property.NOT_FOUND_IN.value)
-            if claims:
-                if len(claims) > 1:
+            not_found_in_claims = self.item.claims.get(Property.NOT_FOUND_IN.value)
+            if not_found_in_claims:
+                if len(not_found_in_claims) > 1:
                     # todo iterate and remove only the right one
-                    console.print(claims)
+                    console.print(not_found_in_claims)
                     raise NotImplementedError(
                         "removing only one of "
                         "multiple not-found-in-"
@@ -572,7 +584,7 @@ class TrailItem(ProjectBaseModel):
                     )
                 else:
                     logger.info("Removing 'not found in'-claim")
-                    self.item.claims.remove(Property.OSM_RELATION_ID.value)
+                    self.item.claims.remove(Property.NOT_FOUND_IN.value)
         except KeyError:
             logger.debug("No NOT_FOUND_IN found on this item to remove")
 
@@ -588,9 +600,14 @@ class TrailItem(ProjectBaseModel):
             if result:
                 self.questionary_return = self.__ask_question__()
 
-    def __verify_successful_upload__(self, item: ItemEntity) -> bool:
+    @staticmethod
+    def __verify_P402_claim_exists__(item: ItemEntity) -> bool:
         found = False
+        property_numbers_found = []
         for claim in item.claims:
+            property_numbers_found.append(claim.mainsnak.property_number)
             if claim.mainsnak.property_number == Property.OSM_RELATION_ID.value:
+                print("P402 found")
                 found = True
+        # print(property_numbers_found)
         return found
