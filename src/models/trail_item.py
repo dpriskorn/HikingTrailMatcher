@@ -319,12 +319,16 @@ class TrailItem(ProjectBaseModel):
                         console.print(self.item.get_json())
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
-                        self.item.write(summary=self.summary)
-                        console.print(
-                            f"Upload done, see {self.item.get_entity_url()} "
-                            f"and https://hiking.waymarkedtrails.org/"
-                            f"#route?id={self.questionary_return.osm_id}"
-                        )
+                        item = self.item.write(summary=self.summary)
+                        if self.__verify_successful_upload__(item):
+                            console.print(
+                                f"Upload done, see {self.item.get_entity_url()} "
+                                f"and https://hiking.waymarkedtrails.org/"
+                                f"#route?id={self.questionary_return.osm_id}"
+                            )
+                            exit()
+                        else:
+                            raise Exception("Upload failed")
                     else:
                         raise SummaryError()
                 else:
@@ -583,3 +587,10 @@ class TrailItem(ProjectBaseModel):
             ).ask()
             if result:
                 self.questionary_return = self.__ask_question__()
+
+    def __verify_successful_upload__(self, item: ItemEntity) -> bool:
+        found = False
+        for claim in item.claims:
+            if claim.mainsnak.property_number == Property.OSM_RELATION_ID.value:
+                found = True
+        return found
