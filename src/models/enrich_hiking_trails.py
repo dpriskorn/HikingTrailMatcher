@@ -110,11 +110,9 @@ class EnrichHikingTrails(ProjectBaseModel):
                 f"and see if any fit with {trail_item.item.get_entity_url()}"
             )
             trail_item.try_matching_again()
-            trail_item.enrich_wikidata()
-        else:
-            trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
-            trail_item.enrich_wikidata()
-        # We don't return anything here because we are done
+        trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
+        trail_item.enrich_wikidata()
+        # We don't return anything here because we are done with this item
 
     def __login_to_wikidata__(self):
         logger.debug(f"Trying to log in to the Wikibase as {config.user_name}")
