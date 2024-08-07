@@ -181,6 +181,18 @@ class TrailItem(ProjectBaseModel):
         except KeyError:
             logger.info("No 'not found in'-claims on this item")
 
+    def __set_no_match__(self):
+        if not self.item:
+            raise NoItemError()
+        console.print(
+            f"No choices from Waymarked Trials "
+            f"API = no match for "
+            f"{self.item.get_entity_url()}"
+        )
+        return_ = QuestionaryReturn()
+        return_.no_match = True
+        self.questionary_return = return_
+
     def __lookup_label_on_waymarked_trails_and_ask_user_to_choose_a_match__(
         self,
     ) -> None:
@@ -201,31 +213,25 @@ class TrailItem(ProjectBaseModel):
         self.__remove_waymaked_result_duplicates__()
         self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
-        if len(self.choices) > 2:
+        # the last 3 choices are not matchable
+        if len(self.choices) > 3:
             self.questionary_return = self.__ask_question__()
         else:
-            if not self.item:
-                raise NoItemError()
-            console.print(
-                f"No choices from Waymarked Trials "
-                f"API = no match for "
-                f"{self.item.get_entity_url()}"
-            )
-            return_ = QuestionaryReturn()
-            return_.no_match = True
-            self.questionary_return = return_
+            # Assuming no match because we got nothing from WT API
+            self.__set_no_match__()
 
     def __prepare_choices__(self):
         self.__convert_waymarked_results_to_choices__()
         self.choices.append(
             Choice(
-                title="Unable to decide whether these match",
-                value=QuestionaryReturn(could_not_decide=True),
+                title="Unable to decide whether these match, show me more information",
+                value=QuestionaryReturn(more_information=True),
             )
         )
         self.choices.append(
             Choice(title="None of these match", value=QuestionaryReturn(no_match=True))
         )
+        self.choices.append(Choice(title="Skip", value=QuestionaryReturn(skip=True)))
 
     def __ask_question__(self) -> QuestionaryReturn:
         """This presents a choice and returns"""
@@ -589,7 +595,7 @@ class TrailItem(ProjectBaseModel):
             logger.debug("No NOT_FOUND_IN found on this item to remove")
 
     def try_matching_again(self):
-        if self.questionary_return.could_not_decide is True:
+        if self.questionary_return.more_information is True:
             result = questionary.select(
                 "Do you want to match again after manually ",
                 choices=[
@@ -607,7 +613,7 @@ class TrailItem(ProjectBaseModel):
         for claim in item.claims:
             property_numbers_found.append(claim.mainsnak.property_number)
             if claim.mainsnak.property_number == Property.OSM_RELATION_ID.value:
-                print("P402 found")
+                logger.debug("P402 found")
                 found = True
         # print(property_numbers_found)
         return found

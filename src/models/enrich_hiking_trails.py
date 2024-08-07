@@ -99,9 +99,10 @@ class EnrichHikingTrails(ProjectBaseModel):
     @staticmethod
     def __lookup_in_waymarked_trails__(trail_item: TrailItem) -> None:
         trail_item.fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user()
-        # if trail_item.questionary_return.quit:
-        #     break
-        if trail_item.questionary_return.could_not_decide:
+        if trail_item.questionary_return.skip:
+            # return early
+            return
+        if trail_item.questionary_return.more_information:
             if not trail_item.item:
                 raise NoItemError()
             console.print(
@@ -144,6 +145,7 @@ class EnrichHikingTrails(ProjectBaseModel):
                     #  geometry from Overpass API and checking if
                     #  each of them are in the right
                     #  1) country 2) region 3) municipality
+                    #  or just how near the centeroid of the QID is to the OSM one
                     self.__lookup_in_waymarked_trails__(trail_item=trail_item)
             else:
                 logger.info(
