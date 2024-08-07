@@ -14,7 +14,7 @@ pydantic = "^1.10.4"
 rich = "^13.3.1"
 questionary = "^1.10.0"
 python-dateutil = "^2.8.2"
-wikibaseintegrator = "^0.12.3"
+wikibaseintegrator = "^0.12.7"
 pydash = "^7.0.4"
 osmpythontools = "^0.3.5"
 

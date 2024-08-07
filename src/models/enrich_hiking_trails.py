@@ -120,6 +120,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         self.wbi = WikibaseIntegrator(
             login=Login(user=config.user_name, password=config.bot_password),
         )
+        print(f"Successfully logged in to Wikidata as {config.user_name}")
 
     @property
     def number_of_items(self) -> int:
