@@ -15,7 +15,7 @@ user_agent = (
 
 # This controls which hiking trails to fetch and work on
 language_code = "en"
-country_qid = "Q30"
+country_qid = "Q34"
 
 # we check once a year for new relations in OSM to avoid
 # clogging wikidata with novalue statements
