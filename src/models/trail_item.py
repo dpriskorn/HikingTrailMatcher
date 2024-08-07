@@ -24,7 +24,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 import config
 from src.console import console
 from src.enums import ItemEnum, OsmIdSource, Property, Status
-from src.exceptions import NoItemError, SummaryError, WBIError
+from src.exceptions import NoItemError, SummaryError
 from src.models.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.models.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.models.project_base_model import ProjectBaseModel
@@ -62,14 +62,11 @@ class TrailItem(ProjectBaseModel):
 
     @property
     def has_osm_way_property(self) -> bool:
-        try:
-            if not self.item:
-                raise NoItemError()
-            if self.item.claims.get(property="P10689"):
-                return True
-            else:
-                raise WBIError("This should never happen")
-        except KeyError:
+        if not self.item:
+            raise NoItemError()
+        if self.item.claims.get(property="P10689"):
+            return True
+        else:
             return False
 
     @property
