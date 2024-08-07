@@ -290,6 +290,7 @@ class TrailItem(ProjectBaseModel):
         if self.item:
             enrich = False
             if self.chosen_osm_id:
+                logger.info("OSM ID confirmed")
                 self.__add_osm_id_to_item__()
                 self.__remove_not_found_in_osm_claim__()
                 self.summary = (
