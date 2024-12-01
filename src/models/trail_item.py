@@ -61,6 +61,17 @@ class TrailItem(ProjectBaseModel):
         arbitrary_types_allowed = True
 
     @property
+    def trail_number(self) -> str:
+        if self.item:
+            trail_number_claims = self.item.claims.get(property="P1824")
+            if trail_number_claims:
+                return str(trail_number_claims[0].mainsnak.datavalue["value"])
+            else:
+                return ""
+        else:
+            return ""
+
+    @property
     def has_osm_way_property(self) -> bool:
         if not self.item:
             raise NoItemError()
@@ -241,7 +252,8 @@ class TrailItem(ProjectBaseModel):
         return_ = questionary.select(
             (
                 f"Which of these match '{self.label}' "
-                f"with description '{self.description}'? "
+                f"with description '{self.description}' "
+                f"and trail number '{self.trail_number}'? "
                 f"(see {self.item.get_entity_url()})"
             ),
             choices=self.choices,
