@@ -22,7 +22,7 @@ osmpythontools = "^0.3.5"
 
 [tool.poetry.group.dev.dependencies]
 bandit = "^1.7.4"
-black = "^23.1.0"
+black = "^24.3.0"
 codespell = "^2.2.2"
 coverage = "^7.1.0"
 flake8 = "^6.0.0"
