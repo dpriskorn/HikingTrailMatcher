@@ -17,8 +17,8 @@ from wikibaseintegrator.entities import ItemEntity  # type: ignore
 from wikibaseintegrator.models import Claim, Reference, References  # type: ignore
 from wikibaseintegrator.wbi_enums import (  # type: ignore
     ActionIfExists,
-    WikibaseDatePrecision,
     WikibaseSnakType,
+    WikibaseTimePrecision,
 )
 
 import config
@@ -360,7 +360,7 @@ class TrailItem(ProjectBaseModel):
         return Time(
             prop_nr=Property.LAST_UPDATE.value,
             time=time_object.day,
-            precision=WikibaseDatePrecision.DAY,
+            precision=WikibaseTimePrecision.DAY,
         )
 
     @staticmethod
@@ -369,7 +369,7 @@ class TrailItem(ProjectBaseModel):
         return Time(
             prop_nr=Property.POINT_IN_TIME.value,
             time=time_object.day,
-            precision=WikibaseDatePrecision.DAY,
+            precision=WikibaseTimePrecision.DAY,
         )
 
     @staticmethod
@@ -378,7 +378,7 @@ class TrailItem(ProjectBaseModel):
         return Time(
             prop_nr=Property.RETRIEVED.value,
             time=time_object.day,
-            precision=WikibaseDatePrecision.DAY,
+            precision=WikibaseTimePrecision.DAY,
         )
 
     def lookup_using_osm_wikidata_link(self) -> None:
