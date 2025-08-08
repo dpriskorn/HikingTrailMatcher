@@ -114,8 +114,9 @@ class EnrichHikingTrails(ProjectBaseModel):
             trail_item.try_matching_again()
         trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
         trail_item.enrich_wikidata()
-        if trail_item.osm_wikidata_link_match_prompt_return == Status.ACCEPTED:
+        if trail_item.chosen_osm_id:
             self.matched_count += 1
+        print(f"Total matched (so far in this session): {self.matched_count}")
         # We don't return anything here because we are done with this item
 
     def __login_to_wikidata__(self):
