@@ -65,7 +65,11 @@ class WaymarkedResult(BaseModel):
             subroutes = self.details.get("subroutes")
             if subroutes:
                 for route in subroutes:
-                    self.subroutes.append(Subroute(**route))
+                    if isinstance(route, str):
+                        logger.info(f"Skipping str route {route}")
+                        # exit(0)
+                    else:
+                        self.subroutes.append(Subroute(**route))
 
     @property
     def number_of_subroutes(self) -> int:
