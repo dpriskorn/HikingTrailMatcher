@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from pydantic import validate_arguments
@@ -22,6 +23,7 @@ class EnrichHikingTrails(ProjectBaseModel):
     wbi: Optional[WikibaseIntegrator]
     item_ids: List[str] = []
     sparql_result: Any
+    matched_count: int = 0
 
     class Config:
         arbitrary_types_allowed = True
@@ -80,6 +82,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         self.setup_wbi()
         self.__login_to_wikidata__()
         self.__iterate_items__()
+        self.__add_to_runlog__()
 
     @staticmethod
     def __lookup_in_osm_wikidata_link__(trail_item: TrailItem) -> TrailItem:
@@ -96,8 +99,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         # Return mutated object
         return trail_item
 
-    @staticmethod
-    def __lookup_in_waymarked_trails__(trail_item: TrailItem) -> None:
+    def __lookup_in_waymarked_trails__(self, trail_item: TrailItem) -> None:
         trail_item.fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user()
         if trail_item.questionary_return.skip:
             # return early
@@ -112,6 +114,8 @@ class EnrichHikingTrails(ProjectBaseModel):
             trail_item.try_matching_again()
         trail_item.osm_id_source = OsmIdSource.QUESTIONNAIRE
         trail_item.enrich_wikidata()
+        if trail_item.osm_wikidata_link_match_prompt_return == Status.ACCEPTED:
+            self.matched_count += 1
         # We don't return anything here because we are done with this item
 
     def __login_to_wikidata__(self):
@@ -152,3 +156,15 @@ class EnrichHikingTrails(ProjectBaseModel):
                 )
             count += 1
             logger.debug("end of loop")
+
+    def __add_to_runlog__(self):
+        """Append an entry like "* 2024-02-20 matched 1 trail"
+        to the file 'RUNLOG.md' using self.matched_count and the current date"""
+        today_str = date.today().isoformat()
+        entry = f"* {today_str} matched {self.matched_count} trail"
+        if self.matched_count != 1:
+            entry += "s"
+        entry += "\n"
+
+        with open("RUNLOG.md", "a", encoding="utf-8") as f:
+            f.write(entry)
