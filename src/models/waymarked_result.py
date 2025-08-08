@@ -9,6 +9,8 @@ import config
 from src.console import console
 from src.models.subroute import Subroute
 
+logger = logging.getLogger(__name__)
+
 
 class WaymarkedResult(BaseModel):
     """Models the JSON response from the Waymarked Trails API"""
