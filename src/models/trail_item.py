@@ -607,7 +607,7 @@ class TrailItem(ProjectBaseModel):
             logger.debug("No NOT_FOUND_IN found on this item to remove")
 
     def try_matching_again(self):
-        if self.questionary_return.more_information is True:
+        if self.questionary_return.more_information:
             result = questionary.select(
                 "Do you want to match again after manually ",
                 choices=[
