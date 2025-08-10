@@ -343,11 +343,11 @@ class TrailItem(ProjectBaseModel):
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
                         self.item.write(summary=self.summary)
-                        console.print(
-                            f"Upload done, see {self.item.get_entity_url()} "
-                            f"and https://hiking.waymarkedtrails.org/"
-                            f"#route?id={self.questionary_return.osm_id}"
-                        )
+                        message = f"Upload done, see {self.item.get_entity_url()} "
+                        if self.questionary_return.osm_id:
+                            message += "and https://hiking.waymarkedtrails.org/"
+                            message += f"#route?id={self.questionary_return.osm_id}"
+                        console.print(message)
                     else:
                         raise SummaryError()
                 else:
@@ -415,6 +415,7 @@ class TrailItem(ProjectBaseModel):
         else:
             self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
 
+    @property
     def wikidata_url(self):
         if not self.qid:
             raise QidException()
@@ -428,7 +429,7 @@ class TrailItem(ProjectBaseModel):
             "Match found via OSM Wikidata Link:\n"
             f"Id: {match.id}\n"
             f"Name: {match.tags.name}\n"
-            f"Url: {self.osm_url(osm_id=match.id)}"
+            f"Url: {self.osm_url(osm_id=match.id)}\n"
             f"WD: {self.wikidata_url}"
         )
         if self.description:
