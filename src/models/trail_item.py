@@ -277,7 +277,8 @@ class TrailItem(ProjectBaseModel):
             data = result.json()
             if config.loglevel == logging.DEBUG:
                 console.print(data)
-            for result in data.get("results"):
+            # Display only the first 5 results to avoid noise from the search engine
+            for result in data.get("results", [])[:5]:
                 if not isinstance(result, dict):
                     raise TypeError("result was not a dictionary")
                 self.waymarked_results.append(WaymarkedResult(**result))
