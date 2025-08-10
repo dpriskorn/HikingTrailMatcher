@@ -16,3 +16,7 @@ class NoItemError(BaseException):
 
 class WBIError(BaseException):
     pass
+
+
+class QidException(BaseException):
+    pass

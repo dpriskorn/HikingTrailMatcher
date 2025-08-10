@@ -24,7 +24,7 @@ from wikibaseintegrator.wbi_enums import (  # type: ignore
 import config
 from src.console import console
 from src.enums import ItemEnum, OsmIdSource, Property, Status
-from src.exceptions import NoItemError, SummaryError
+from src.exceptions import NoItemError, QidException, SummaryError
 from src.models.osm_wikidata_link_result import OsmWikidataLinkResult
 from src.models.osm_wikidata_link_return import OsmWikidataLinkReturn
 from src.models.project_base_model import ProjectBaseModel
@@ -415,6 +415,11 @@ class TrailItem(ProjectBaseModel):
         else:
             self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
 
+    def wikidata_url(self):
+        if not self.qid:
+            raise QidException()
+        return f"https://www.wikidata.org/entity/{self.qid}"
+
     def __ask_user_to_approve_match_from_osm_wikidata_link__(self) -> None:
         self.__get_item_details__()
         # inform user that we match based on
@@ -424,6 +429,7 @@ class TrailItem(ProjectBaseModel):
             f"Id: {match.id}\n"
             f"Name: {match.tags.name}\n"
             f"Url: {self.osm_url(osm_id=match.id)}"
+            f"WD: {self.wikidata_url}"
         )
         if self.description:
             question = (
