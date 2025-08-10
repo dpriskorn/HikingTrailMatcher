@@ -165,7 +165,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         entry = f"* {today_str} matched {self.matched_count} trail"
         if self.matched_count != 1:
             entry += "s"
-        entry += "\n"
+        entry += f" lang{config.language_code} country:{config.country_qid}\n"
 
         with open("RUNLOG.md", "a", encoding="utf-8") as f:
             f.write(entry)
