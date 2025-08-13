@@ -1,3 +1,4 @@
+import json
 import logging
 import textwrap
 from datetime import datetime, timedelta
@@ -338,6 +339,12 @@ class TrailItem(ProjectBaseModel):
             if enrich is True:
                 if config.upload_to_wikidata:
                     if config.validate_before_upload:
+                        # Save to file
+                        with open("output.json", "w", encoding="utf-8") as f:
+                            json.dump(
+                                self.item.get_json(), f, ensure_ascii=False, indent=2
+                            )
+                        print("JSON saved to output.json")
                         print("Please validate that this json looks okay")
                         console.print(self.item.get_json())
                         console.input("Press enter to upload or ctrl+c to quit")
