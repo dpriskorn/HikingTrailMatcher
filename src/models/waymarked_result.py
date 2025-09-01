@@ -27,6 +27,7 @@ class WaymarkedResult(BaseModel):
     official_length: float = 0
     mapped_length: float = 0
     description: str = ""
+    wikidata: str = ""
 
     class Config:
         arbitrary_types_allowed = True
@@ -48,7 +49,7 @@ class WaymarkedResult(BaseModel):
         if response.status_code == 200:
             self.details = response.json()
             logging.info("Got details from Waymarked Trails API")
-            if config.loglevel == logging.DEBUG:
+            if config.loglevel == logging.DEBUG and config.debug_json:
                 console.print(self.details)
         else:
             raise Exception(
@@ -86,14 +87,13 @@ class WaymarkedResult(BaseModel):
         else:
             return ""
 
-    @property
-    def already_has_wikidata_tag(self) -> bool:
-        """This check uses the Openstreetmap API because it is fast"""
+    def fetch_wikidata_tag_information(self) -> None:
+        """This check uses the Openstreetmap API because it is very fast"""
         api = Api()
         relation = api.query(f"relation/{self.id}")
         wikidata = relation.tag("wikidata")
-        logging.debug(f"wikidata tag: {wikidata}")
-        if wikidata is None:
-            return False
+        if wikidata:
+            self.wikidata = wikidata
+            logging.debug(f"wikidata tag: {wikidata}")
         else:
-            return True
+            logger.debug(f"No wikidata tag found for {self.id}")
