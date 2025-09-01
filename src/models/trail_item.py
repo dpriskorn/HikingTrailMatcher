@@ -2,7 +2,7 @@ import json
 import logging
 import textwrap
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List
 from urllib.parse import quote
 
 import pydash
@@ -10,8 +10,8 @@ import questionary
 import requests
 from dateutil.parser import parse  # type: ignore
 from dateutil.tz import tzutc  # type: ignore
-from pydantic import validate_arguments
 from questionary import Choice
+from rapidfuzz import fuzz
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
 from wikibaseintegrator.datatypes import ExternalID, Item, Time  # type: ignore
 from wikibaseintegrator.entities import ItemEntity  # type: ignore
@@ -41,7 +41,7 @@ class TrailItem(ProjectBaseModel):
     waymarked_results: List[WaymarkedResult] = []
     choices: List[Choice] = []
     label: str = ""
-    item: Optional[ItemEntity]
+    item: ItemEntity | None = None
     description: str = ""
     wbi: WikibaseIntegrator
     qid: str = ""
@@ -49,12 +49,12 @@ class TrailItem(ProjectBaseModel):
     osm_ids: List[str] = []
     osm_wikidata_link_return: OsmWikidataLinkReturn = OsmWikidataLinkReturn()
     osm_wikidata_link_results: List[OsmWikidataLinkResult] = []
-    osm_wikidata_link_match_prompt_return: Optional[Status]
+    osm_wikidata_link_match_prompt_return: Status | None = None
     osm_wikidata_link_data: Dict = dict()
     already_fetched_item_details: bool = False
-    osm_id_source: Optional[OsmIdSource]
+    osm_id_source: OsmIdSource | None = None
     chosen_osm_id: int = 0
-    last_update: Optional[datetime]
+    last_update: datetime | None = None
     summary: str = ""
     testing: bool = False
 
@@ -82,13 +82,15 @@ class TrailItem(ProjectBaseModel):
             return False
 
     @property
-    def open_in_josm_urls(self):
+    def open_in_josm_urls(self) -> str:
         if self.osm_ids:
             string_list = [f"r{str(id_)}" for id_ in self.osm_ids]
             return (
                 f"http://localhost:8111/load_object?"
                 f"new_layer=true&objects={','.join(string_list)}"
             )
+        else:
+            return ""
 
     @property
     def waymarked_hiking_trails_search_url(self):
@@ -100,32 +102,39 @@ class TrailItem(ProjectBaseModel):
             return ""
 
     def __convert_waymarked_results_to_choices__(self):
+        logger.debug(f"Converting {len(self.waymarked_results)} results to choices")
         for result in self.waymarked_results:
-            # We only want choices which are missing a Wikidata tag
-            if not result.already_has_wikidata_tag:
-                title = f"{result.name}"
-                if result.id:
-                    title += f" ({result.id})"
-                if result.ref:
-                    title += f", ref: {result.ref}"
-                if result.number_of_subroutes:
-                    title += f", subroutes #: {result.number_of_subroutes}"
-                if result.names_of_subroutes_as_string:
-                    title += f", subroutes: {result.names_of_subroutes_as_string}"
-                # if result.description:
-                #     title += f", description: {result.description}"
-                if result.group:
-                    title += f", group: {result.group}"
-                if result.itinerary:
-                    title += f", itinerary: {', '.join(result.itinerary)}"
-                choice = Choice(
-                    title=textwrap.fill(title, 100),
-                    value=QuestionaryReturn(osm_id=result.id),
+            title = f"{result.name}"
+            if result.id:
+                title += f" ({result.id})"
+            if result.ref:
+                title += f", ref: {result.ref}"
+            if result.number_of_subroutes:
+                title += f", subroutes #: {result.number_of_subroutes}"
+            if result.names_of_subroutes_as_string:
+                title += f", subroutes: {result.names_of_subroutes_as_string}"
+            # if result.description:
+            #     title += f", description: {result.description}"
+            if result.group:
+                title += f", group: {result.group}"
+            if result.itinerary:
+                title += f", itinerary: {', '.join(result.itinerary)}"
+            result.fetch_wikidata_tag_information()
+            if result.wikidata:
+                title += (
+                    f", has wikidata link: {self.wikidata_url(qid=result.wikidata)}"
                 )
-                self.choices.append(choice)
+            choice = Choice(
+                title=textwrap.fill(title, 100),
+                value=QuestionaryReturn(osm_id=result.id),
+            )
+            self.choices.append(choice)
+        else:
+            logger.debug("Excluded relation that already has Wikidata tag")
 
     def __remove_waymaked_result_duplicates__(self):
         self.waymarked_results = list(set(self.waymarked_results))
+        logger.debug(f"Results after deduplication: {len(self.waymarked_results)}")
 
     # def __clear_attributes__(self):
     #     self.waymarked_results = self.choices = []
@@ -221,8 +230,9 @@ class TrailItem(ProjectBaseModel):
         if not isinstance(self.label, str):
             raise TypeError("self.label was not a str")
         logger.info(f"looking up: {self.label}")
-        self.__lookup_in_the_waymarked_trails_database__(search_term=self.label)
+        self.__fetch_waymarked_data__()
         self.__remove_waymaked_result_duplicates__()
+        self.__filter_waymarked_results_by_similarity__()
         self.__get_details_from_waymarked_trails__()
         self.__prepare_choices__()
         # the last 3 choices are not matchable
@@ -233,6 +243,7 @@ class TrailItem(ProjectBaseModel):
             self.__set_no_match__()
 
     def __prepare_choices__(self):
+        logger.debug(f"Preparing {len(self.waymarked_results)} results")
         self.__convert_waymarked_results_to_choices__()
         self.choices.append(
             Choice(
@@ -265,27 +276,78 @@ class TrailItem(ProjectBaseModel):
             exit()
             # raise TypeError("not a QuestionaryReturn")
 
-    @validate_arguments()
-    def __lookup_in_the_waymarked_trails_database__(self, search_term: str) -> None:
-        if not search_term:
-            raise ValueError("search_term was empty")
+    def __fetch_waymarked_data__(self) -> None:
+        """
+        Fetch raw data from Waymarked Trails API and store it in self.waymarked_results
+        as WaymarkedResult instances.
+        """
         url = (
-            f"https://hiking.waymarkedtrails.org/api/"
-            f"v1/list/search?query={search_term}"
+            f"https://hiking.waymarkedtrails.org/api/v1/list/search?query={self.label}"
         )
-        result = requests.get(url=url, timeout=config.request_timeout)
-        if result.status_code == 200:
-            data = result.json()
-            if config.loglevel == logging.DEBUG:
-                console.print(data)
-            # Display only the first 5 results to avoid noise from the search engine
-            for result in data.get("results", [])[:5]:
-                if not isinstance(result, dict):
-                    raise TypeError("result was not a dictionary")
-                self.waymarked_results.append(WaymarkedResult(**result))
+        response = requests.get(url=url, timeout=config.request_timeout)
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Waymarked Trails API returned status code {response.status_code}"
+            )
+
+        data = response.json()
+
+        if config.loglevel == logging.DEBUG and config.debug_json:
+            console.print(data)
+
+        # Parse each item into a WaymarkedResult before storing
+        self.waymarked_results = [
+            WaymarkedResult(**item)
+            for item in data.get("results", [])
+            if isinstance(item, dict)
+        ]
+
+    @staticmethod
+    def __clean_name__(name: str) -> str:
+        words = name.lower().split()
+        filtered = [w for w in words if w not in config.EXCLUDED_TERM_WORDS]
+        return " ".join(filtered)
+
+    def __filter_waymarked_results_by_similarity__(self) -> None:
+        """
+        Process self.waymarked_results: remove term words from names,
+        filter by similarity, sort, and store in self.waymarked_results.
+        """
+
+        results = []
+        if self.waymarked_results:
+            logger.info(f"Got {len(self.waymarked_results)} from WT")
+            label_clean = self.__clean_name__(self.label)
+            for item in self.waymarked_results:
+                item_name_clean = self.__clean_name__(item.name)
+                similarity = fuzz.ratio(label_clean, item_name_clean) / 100
+                logger.info(
+                    f"Similarity for '{label_clean}' -> "
+                    + "'{item_name_clean}': {similarity:.2f}"
+                )
+                if similarity >= config.min_similarity:
+                    results.append((similarity, item))
+        else:
+            logger.info("Got no results from Waymarked trails")
+
+        # Sort results by similarity descending
+        results.sort(key=lambda x: x[0], reverse=True)
+        if not results:
+            logger.info("No results passed the filtering")
+
+        # Store the filtered and sorted results
+        self.waymarked_results = [res for _, res in results]
+        logger.debug(f"Found {len(results)} similar results from waymarked trails")
+        # pprint(self.waymarked_results)
 
     def __get_details_from_waymarked_trails__(self) -> None:
-        [result.get_details() for result in self.waymarked_results]
+        updated_results = []
+        for result in self.waymarked_results:
+            result_copy = result.copy()
+            result_copy.get_details()
+            updated_results.append(result_copy)
+        self.waymarked_results = updated_results
 
     def fetch_and_lookup_from_waymarked_trails_and_present_choice_to_user(self):
         """We collect all the information and help
@@ -324,7 +386,7 @@ class TrailItem(ProjectBaseModel):
                     raise Exception("No P402 claim found on the item")
                 enrich = True
             else:
-                if self.questionary_return.no_match is True:
+                if self.questionary_return.no_match:
                     console.print("No match")
                     self.__add_or_replace_not_found_in_openstreetmap_claim__()
                     self.__remove_osm_relation_no_value_claim__()
@@ -336,7 +398,7 @@ class TrailItem(ProjectBaseModel):
                     enrich = True
                 else:
                     logging.info("No enriching to be done")
-            if enrich is True:
+            if enrich:
                 if config.upload_to_wikidata:
                     if config.validate_before_upload:
                         # Save to file
@@ -346,7 +408,7 @@ class TrailItem(ProjectBaseModel):
                             )
                         print("JSON saved to output.json")
                         print("Please validate that this json looks okay")
-                        if config.loglevel == logging.DEBUG:
+                        if config.loglevel == logging.DEBUG and config.debug_json:
                             console.print(self.item.get_json())
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
@@ -390,14 +452,22 @@ class TrailItem(ProjectBaseModel):
             precision=WikibaseTimePrecision.DAY,
         )
 
+    @property
+    def osm_wikidata_link_url(self) -> str:
+        return f"https://osm.wikidata.link/tagged/api/item/{self.qid}"
+
     def lookup_using_osm_wikidata_link(self) -> None:
         """Lookup first in OSM
         See documentation here https://osm.wikidata.link/tagged/"""
-        url = f"https://osm.wikidata.link/tagged/api/item/{self.qid}"
-        result = requests.get(url, timeout=config.request_timeout)
+        logger.debug(
+            f"Looking up in OSM Wikidata Link, see {self.osm_wikidata_link_url}"
+        )
+        result = requests.get(
+            self.osm_wikidata_link_url, timeout=config.request_timeout
+        )
         if result.status_code == 200:
             data = result.json()
-            if config.loglevel == logging.DEBUG:
+            if config.loglevel == logging.DEBUG and config.debug_json:
                 console.print(data)
             self.osm_wikidata_link_data = data
             self.__parse_response_from_osm_wikidata_link__()
@@ -423,10 +493,11 @@ class TrailItem(ProjectBaseModel):
         else:
             self.osm_wikidata_link_return = OsmWikidataLinkReturn(no_match=True)
 
-    @property
-    def wikidata_url(self):
-        if not self.qid:
+    def wikidata_url(self, qid: str = "") -> str:
+        if not self.qid and not qid:
             raise QidException()
+        if qid:
+            return f"https://www.wikidata.org/entity/{qid}"
         return f"https://www.wikidata.org/entity/{self.qid}"
 
     def __ask_user_to_approve_match_from_osm_wikidata_link__(self) -> None:
@@ -438,7 +509,7 @@ class TrailItem(ProjectBaseModel):
             f"Id: {match.id}\n"
             f"Name: {match.tags.name}\n"
             f"Url: {self.osm_url(osm_id=match.id)}\n"
-            f"WD: {self.wikidata_url}"
+            f"WD: {self.wikidata_url()}"
         )
         if self.description:
             question = (
