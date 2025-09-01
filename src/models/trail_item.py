@@ -305,7 +305,14 @@ class TrailItem(ProjectBaseModel):
 
     @staticmethod
     def __clean_name__(name: str) -> str:
-        words = name.lower().split()
+        words = (
+            name.lower()
+            .replace("-", " ")
+            .replace("–", " ")
+            .replace(",", " ")
+            .strip()
+            .split()
+        )
         filtered = [w for w in words if w not in config.EXCLUDED_TERM_WORDS]
         return " ".join(filtered)
 
@@ -321,7 +328,11 @@ class TrailItem(ProjectBaseModel):
             label_clean = self.__clean_name__(self.label)
             for item in self.waymarked_results:
                 item_name_clean = self.__clean_name__(item.name)
-                similarity = fuzz.ratio(label_clean, item_name_clean) / 100
+                # Use token_sort_ratio so that word order doesn't matter
+                # e.g. "falerum åtvidaberg" == "åtvidaberg falerum" → 1.0
+                # but avoid false positives from subsets
+                # e.g. "glotternskogen lilla älgsjön" vs "lilla" → 0.36 (not 1.0)
+                similarity = fuzz.token_sort_ratio(label_clean, item_name_clean) / 100
                 logger.info(
                     f"Similarity for '{label_clean}' -> "
                     + f"'{item_name_clean}': {similarity:.2f}"
