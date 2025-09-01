@@ -75,9 +75,9 @@ class TestWaymarkedResult(TestCase):
     def test_already_has_wikidata_tag_true(self):
         wr = WaymarkedResult(id=1014050, name="skåneleden")  # skåneleden
         wr.get_details()
-        assert wr.already_has_wikidata_tag is True
+        assert wr.fetch_wikidata_tag_information is True
 
     def test_already_has_wikidata_tag_false(self):
         wr = WaymarkedResult(id=10528596, name="test")  # östra leden på kebnekaise
         wr.get_details()
-        assert wr.already_has_wikidata_tag is False
+        assert wr.fetch_wikidata_tag_information is False

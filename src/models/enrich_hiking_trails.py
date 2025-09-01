@@ -1,6 +1,6 @@
 import logging
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from pydantic import validate_arguments
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 class EnrichHikingTrails(ProjectBaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
-    wbi: Optional[WikibaseIntegrator]
+    wbi: WikibaseIntegrator | None = None
     item_ids: List[str] = []
-    sparql_result: Any
+    sparql_result: Any = dict()
     matched_count: int = 0
 
     class Config:

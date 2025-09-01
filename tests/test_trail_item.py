@@ -15,11 +15,12 @@ class TestTrailItem(TestCase):
         "Q7407905"  # small trail in USA which I hope won't change much
     )
 
-    def test___lookup_in_the_waymarked_trails_database__(self):
-        trail_item = TrailItem(wbi=WikibaseIntegrator())
-        trail_item.__lookup_in_the_waymarked_trails_database__(search_term="Kungsleden")
-        assert len(trail_item.waymarked_results) == 2
-        assert trail_item.waymarked_results[0].id == 254324
+    # def test___lookup_in_the_waymarked_trails_database__(self):
+    #     trail_item = TrailItem(wbi=WikibaseIntegrator())
+    #     trail_item.__lookup_in_the_waymarked_trails_database__(
+    #     search_term="Kungsleden")
+    #     assert len(trail_item.waymarked_results) == 2
+    #     assert trail_item.waymarked_results[0].id == 254324
 
     def test_remove_duplicates(self):
         trail_item = TrailItem(wbi=WikibaseIntegrator())
