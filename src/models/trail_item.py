@@ -346,7 +346,8 @@ class TrailItem(ProjectBaseModel):
                             )
                         print("JSON saved to output.json")
                         print("Please validate that this json looks okay")
-                        console.print(self.item.get_json())
+                        if config.loglevel == logging.DEBUG:
+                            console.print(self.item.get_json())
                         console.input("Press enter to upload or ctrl+c to quit")
                     if self.summary:
                         self.item.write(summary=self.summary)
