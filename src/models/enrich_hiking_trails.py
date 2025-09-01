@@ -40,12 +40,19 @@ class EnrichHikingTrails(ProjectBaseModel):
         with labels in the specified language"""
         self.setup_wbi()
         # Support all subclasses of Q2143825 hiking trail
+        # minus paths that already have a link to OSM relation
+        # minus discontinued hiking paths
         self.sparql_result = execute_sparql_query(
             f"""
             SELECT DISTINCT ?item ?itemLabel WHERE {{
               ?item wdt:P31/wdt:P279* wd:Q2143825;
                     wdt:P17 wd:{config.country_qid}.
-              minus{{?item wdt:P402 []}}
+              minus{{
+                    ?item wdt:P402 []
+              }}
+              minus{{
+                    ?item wdt:P31 wd:Q116787033
+              }}
               # Fetch labels also
               SERVICE wikibase:label
               {{ bd:serviceParam wikibase:language "{config.language_code}". }}
