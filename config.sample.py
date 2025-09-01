@@ -14,9 +14,33 @@ user_agent = (
 )
 
 # This controls which hiking trails to fetch and work on
-language_code = "en"
+# this is used to know if a label exist for the language of the country
+# language_code = "en"
+language_code = "sv"
+# country_qid = "Q30" # USA
 country_qid = "Q34"
 
-# we check once a year for new relations in OSM to avoid
-# clogging wikidata with novalue statements
-max_days_between_new_check = 365
+# we check rather seldom for new relations in OSM
+max_days_between_new_check: int = int(365 * 0.5)
+# levenstein distance
+min_similarity: float = 0.8
+# They should be lowercase
+EXCLUDED_TERM_WORDS = {
+    "roundtrip",
+    "rundslinga",
+    "trail",
+    "vandringsled",
+    "led",
+    "vandringsförslag",
+    "runt",
+    "i",
+    "vandring",
+    "hälsans",
+    "stig",
+    "signaturled",
+    "skogsstigen",
+    "naturreservat",
+    "slingan",
+    "naturstig",
+    "etapp",
+}
