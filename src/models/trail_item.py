@@ -324,7 +324,7 @@ class TrailItem(ProjectBaseModel):
                 similarity = fuzz.ratio(label_clean, item_name_clean) / 100
                 logger.info(
                     f"Similarity for '{label_clean}' -> "
-                    + "'{item_name_clean}': {similarity:.2f}"
+                    + f"'{item_name_clean}': {similarity:.2f}"
                 )
                 if similarity >= config.min_similarity:
                     results.append((similarity, item))
