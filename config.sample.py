@@ -1,16 +1,18 @@
 import logging
 
-loglevel = logging.INFO
-validate_before_upload = True
-upload_to_wikidata = True
-request_timeout = 10
 user_name = ""
 bot_password = ""  # nosec
 user_name_only = "input your user name here"
+
+loglevel = logging.INFO
+debug_json = False
+validate_before_upload = True
+upload_to_wikidata = True
+request_timeout = 10
 user_agent = (
     f"hiking_trail_matcher, "
-    f"see https://github.com/dpriskorn/"
-    f"hiking_trail_matcher/ User:{user_name_only}"
+    f"see https://github.com/dpriskorn/hiking_trail_matcher/ "
+    f"User:{user_name_only}"
 )
 
 # This controls which hiking trails to fetch and work on
