@@ -1,6 +1,6 @@
 import logging
-from datetime import date
-from typing import Any, Dict, List
+from datetime import date, datetime
+from typing import Any, Dict
 
 from pydantic import validate_arguments
 from wikibaseintegrator import WikibaseIntegrator  # type: ignore
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class EnrichHikingTrails(ProjectBaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
     wbi: WikibaseIntegrator | None = None
-    item_ids: List[str] = []
+    items: list[TrailItem] = list()
     sparql_result: Any = dict()
     matched_count: int = 0
 
@@ -29,11 +29,65 @@ class EnrichHikingTrails(ProjectBaseModel):
         arbitrary_types_allowed = True
 
     def __get_hiking_trails_missing_osm_id__(self) -> None:
-        with console.status("Getting hiking paths from WDQS"):
-            self.__get_sparql_result__()
-            # if config.loglevel == logging.DEBUG:
-            #     console.print(result)
-            self.__extract_item_ids__()
+        """Fetch hiking trails missing OSM ID and populate TrailItem objects"""
+        # with console.status("Getting hiking paths from WDQS"):
+        self.__get_sparql_result__()
+        self.__extract_items_from_sparql__()
+
+    def __extract_items_from_sparql__(self) -> None:
+        """Create TrailItem objects from SPARQL results including last_update"""
+        if self.sparql_result:
+            for binding in self.sparql_result["results"]["bindings"]:
+                # pprint(binding)
+                qid = self.__extract_wcdqs_json_entity_id__(data=binding)
+                # Extract last_update if present
+                last_update_str = binding.get("lastUpdate", {}).get("value")
+                logger.debug(f"got last update string: {last_update_str}")
+                last_update = None
+                if last_update_str:
+                    try:
+                        last_update = datetime.fromisoformat(last_update_str)
+                    except ValueError:
+                        raise Exception(
+                            f"Failed to parse last_update for {qid}: {last_update_str}"
+                        )
+                trail_item = TrailItem(qid=qid, wbi=self.wbi, last_update=last_update)
+                # pprint(trail_item)
+                # input("press enter to cont")
+                self.items.append(trail_item)
+        print(f"Got {len(self.items)} TrailItems from WDQS")
+        # exit(0)
+
+    @property
+    def number_of_items(self) -> int:
+        return len(self.items)
+
+    def __iterate_items__(self):
+        logger.debug("__iterate_items__: running")
+        for count, trail_item in enumerate(self.items, start=1):
+            console.print(f"Working on {count}/{self.number_of_items}")
+            if trail_item.time_to_check_again():
+                logger.debug("It's time to check")
+                trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
+                if (
+                    trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
+                    or trail_item.osm_wikidata_link_return.no_match is True
+                ):
+                    logger.info("Falling back to Waymarked Trails API")
+                    self.__lookup_in_waymarked_trails__(trail_item=trail_item)
+            else:
+                logger.info(
+                    f"Skipping item with recent last update statement, "
+                    f"see {trail_item.qid}"
+                )
+        logger.debug("Finished iterating over items")
+
+    # def __get_hiking_trails_missing_osm_id__(self) -> None:
+    #     with console.status("Getting hiking paths from WDQS"):
+    #         self.__get_sparql_result__()
+    #         # if config.loglevel == logging.DEBUG:
+    #         #     console.print(result)
+    #         self.__extract_item_ids__()
 
     def __get_sparql_result__(self):
         """Get all hiking trails and subtrails in the specified country and
@@ -44,18 +98,18 @@ class EnrichHikingTrails(ProjectBaseModel):
         # minus discontinued hiking paths
         self.sparql_result = execute_sparql_query(
             f"""
-            SELECT DISTINCT ?item ?itemLabel WHERE {{
+            SELECT ?item ?lastUpdate WHERE {{
               ?item wdt:P31/wdt:P279* wd:Q2143825;
                     wdt:P17 wd:{config.country_qid}.
-              minus{{
-                    ?item wdt:P402 []
+
+              MINUS {{ ?item wdt:P402 [] }}
+              MINUS {{ ?item wdt:P31 wd:Q116787033 }}
+
+              OPTIONAL {{
+                ?item p:P9660 ?statement.
+                ?statement ps:P9660 wd:Q936.      # must be OpenStreetMap
+                ?statement pq:P5017 ?lastUpdate.  # qualifier date
               }}
-              minus{{
-                    ?item wdt:P31 wd:Q116787033
-              }}
-              # Fetch labels also
-              SERVICE wikibase:label
-              {{ bd:serviceParam wikibase:language "{config.language_code}". }}
             }}
             """
         )
@@ -68,26 +122,25 @@ class EnrichHikingTrails(ProjectBaseModel):
         it is customary in the Wikibase ecosystem"""
         return str(data[sparql_variable]["value"].replace(self.rdf_entity_prefix, ""))
 
-    @validate_arguments
-    def __extract_item_ids__(self) -> None:
-        """Yield item ids from a sparql result"""
-        self.item_ids = []
-        if self.sparql_result:
-            for binding in self.sparql_result["results"]["bindings"]:
-                self.item_ids.append(
-                    self.__extract_wcdqs_json_entity_id__(data=binding)
-                )
-        console.print(f"Got {self.number_of_items} from WDQS")
+    # @validate_arguments
+    # def __extract_item_ids__(self) -> None:
+    #     """Yield item ids from a sparql result"""
+    #     self.item_ids = []
+    #     if self.sparql_result:
+    #         for binding in self.sparql_result["results"]["bindings"]:
+    #             self.item_ids.append(
+    #                 self.__extract_wcdqs_json_entity_id__(data=binding)
+    #             )
+    #     console.print(f"Got {self.number_of_items} from WDQS")
 
     def add_osm_property_to_items(self):
         """We setup WBI, lookup first in OSM Wikidata Link
         and then fallback to labelmatching using the
         Waymaked Trails API"""
-        # get all hiking paths in sweden without osm id
-        self.__get_hiking_trails_missing_osm_id__()
         # We set up WBI once here and reuse it for every TrailItem
         self.setup_wbi()
         self.__login_to_wikidata__()
+        self.__get_hiking_trails_missing_osm_id__()
         self.__iterate_items__()
         self.__add_to_runlog__()
 
@@ -132,38 +185,6 @@ class EnrichHikingTrails(ProjectBaseModel):
             login=Login(user=config.user_name, password=config.bot_password),
         )
         print(f"Successfully logged in to Wikidata as {config.user_name}")
-
-    @property
-    def number_of_items(self) -> int:
-        return len(self.item_ids)
-
-    def __iterate_items__(self):
-        logger.debug("__iterate_items__: running")
-        count = 1
-        for qid in self.item_ids:
-            console.print(f"Working on {count}/{self.number_of_items}")
-            trail_item = TrailItem(qid=qid, wbi=self.wbi)
-            if trail_item.time_to_check_again():
-                logger.debug("It's time to check")
-                trail_item = self.__lookup_in_osm_wikidata_link__(trail_item=trail_item)
-                if (
-                    trail_item.osm_wikidata_link_match_prompt_return == Status.DECLINED
-                    or trail_item.osm_wikidata_link_return.no_match is True
-                ):
-                    logger.info("Falling back to Waymarked Trails API")
-                    # TODO annotate the results here are by downloading their
-                    #  geometry from Overpass API and checking if
-                    #  each of them are in the right
-                    #  1) country 2) region 3) municipality
-                    #  or just how near the centeroid of the QID is to the OSM one
-                    self.__lookup_in_waymarked_trails__(trail_item=trail_item)
-            else:
-                logger.info(
-                    f"Skipping item with recent last update statement, "
-                    f"see {trail_item.item.get_entity_url()}"
-                )
-            count += 1
-            logger.debug("end of loop")
 
     def __add_to_runlog__(self):
         """Append an entry like "* 2024-02-20 matched 1 trail"

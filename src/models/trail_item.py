@@ -155,7 +155,7 @@ class TrailItem(ProjectBaseModel):
                 if description:
                     self.description = description.value
                 # aliases = item.aliases.get("sv")
-                self.__parse_not_found_in_osm_last_update_statement__()
+                # self.__parse_not_found_in_osm_last_update_statement__()
                 self.already_fetched_item_details = True
             else:
                 raise Exception("self.item was None")
@@ -619,16 +619,15 @@ class TrailItem(ProjectBaseModel):
         if not self.__verify_P402_claim_exists__(self.item):
             raise Exception("No P402 claim found on the item")
 
-    def time_to_check_again(self, testing: bool = False) -> bool:
-        if not testing:
-            self.__get_item_details__()
+    def time_to_check_again(self) -> bool:
+        logger.debug("time_to_check_again: running")
         if self.last_update:
             latest_date_for_new_check = datetime.now(tz=tzutc()) - timedelta(
                 days=config.max_days_between_new_check
             )
             if latest_date_for_new_check > self.last_update:
                 # Maximum number of days passed, let's check again
-                logger.info("Time to check again")
+                logger.info(f"Time to check again based on {self.last_update}")
                 return True
             else:
                 return False
