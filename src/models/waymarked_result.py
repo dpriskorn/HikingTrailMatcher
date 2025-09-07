@@ -9,6 +9,8 @@ import config
 from src.console import console
 from src.models.subroute import Subroute
 
+# Silence chatty warning messages
+logging.getLogger("OSMPythonTools").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
