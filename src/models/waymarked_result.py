@@ -48,7 +48,7 @@ class WaymarkedResult(BaseModel):
         response = self.session.get(url, timeout=config.request_timeout)
         if response.status_code == 200:
             self.details = response.json()
-            logging.info("Got details from Waymarked Trails API")
+            logging.debug("Got details from Waymarked Trails API")
             if config.loglevel == logging.DEBUG and config.debug_json:
                 console.print(self.details)
         else:
@@ -67,7 +67,7 @@ class WaymarkedResult(BaseModel):
             if subroutes:
                 for route in subroutes:
                     if isinstance(route, str):
-                        logger.info(f"Skipping str route {route}")
+                        logger.debug(f"Skipping str route {route}")
                         # exit(0)
                     else:
                         self.subroutes.append(Subroute(**route))
