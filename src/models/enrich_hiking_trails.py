@@ -98,7 +98,7 @@ class EnrichHikingTrails(ProjectBaseModel):
         # minus discontinued hiking paths
         self.sparql_result = execute_sparql_query(
             f"""
-            SELECT ?item ?lastUpdate WHERE {{
+            SELECT distinct ?item ?lastUpdate WHERE {{
               ?item wdt:P31/wdt:P279* wd:Q2143825;
                     wdt:P17 wd:{config.country_qid}.
 
