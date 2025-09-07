@@ -62,15 +62,12 @@ class TrailItem(ProjectBaseModel):
         arbitrary_types_allowed = True
 
     @property
-    def trail_number(self) -> str:
+    def naturkartan_url(self) -> str:
         if self.item:
-            trail_number_claims = self.item.claims.get(property="P1824")
-            if trail_number_claims:
-                return str(trail_number_claims[0].mainsnak.datavalue["value"])
-            else:
-                return ""
-        else:
-            return ""
+            nk_claim = self.item.claims.get(property="P10467")
+            if nk_claim:
+                return f'https://api.naturkartan.se/{nk_claim[0].mainsnak.datavalue["value"]}'
+        return ""
 
     @property
     def has_osm_way_property(self) -> bool:
@@ -264,9 +261,9 @@ class TrailItem(ProjectBaseModel):
         return_ = questionary.select(
             (
                 f"Which of these match '{self.label}' "
-                f"with description '{self.description}' "
-                f"and trail number '{self.trail_number}'? "
-                f"(see {self.item.get_entity_url()})"
+                f"with description '{self.description}'?\n"
+                f"(see {self.item.get_entity_url()} and \n"
+                f"{self.naturkartan_url})"
             ),
             choices=self.choices,
         ).ask()  # returns value of selection or None if user cancels
