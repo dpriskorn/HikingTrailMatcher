@@ -471,7 +471,10 @@ class TrailItem(ProjectBaseModel):
             f"Looking up in OSM Wikidata Link, see {self.osm_wikidata_link_url}"
         )
         result = requests.get(
-            self.osm_wikidata_link_url, timeout=config.request_timeout
+            self.osm_wikidata_link_url,
+            timeout=config.request_timeout,
+            # cert expired
+            verify=False,
         )
         if result.status_code == 200:
             data = result.json()
