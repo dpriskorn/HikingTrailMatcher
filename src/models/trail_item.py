@@ -121,6 +121,7 @@ class TrailItem(ProjectBaseModel):
                 title += (
                     f", has wikidata link: {self.wikidata_url(qid=result.wikidata)}"
                 )
+            title += f" \nWT: {self.waymarked_hiking_trails_search_url}"
             choice = Choice(
                 title=textwrap.fill(title, 100),
                 value=QuestionaryReturn(osm_id=result.id),
@@ -307,6 +308,7 @@ class TrailItem(ProjectBaseModel):
             .replace("-", " ")
             .replace("–", " ")
             .replace(",", " ")
+            .replace(":", " ")
             .strip()
             .split()
         )
