@@ -332,7 +332,7 @@ class TrailItem(ProjectBaseModel):
                 # but avoid false positives from subsets
                 # e.g. "glotternskogen lilla älgsjön" vs "lilla" → 0.36 (not 1.0)
                 similarity = fuzz.token_sort_ratio(label_clean, item_name_clean) / 100
-                logger.info(
+                print(
                     f"Similarity for '{label_clean}' -> "
                     + f"'{item_name_clean}': {similarity:.2f}"
                 )
