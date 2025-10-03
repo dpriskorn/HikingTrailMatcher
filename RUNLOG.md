@@ -8,3 +8,5 @@
 * 2025-09-08 matched 1 trail lang:sv country:Q34
 * 2025-09-10 matched 5 trails lang:sv country:Q34
 * 2025-09-15 matched 1 trail lang:sv country:Q34
+* 2025-09-30 matched 1 trail lang:sv country:Q34
+* 2025-10-03 matched 22 trails lang:sv country:Q34
