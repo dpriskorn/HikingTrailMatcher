@@ -17,3 +17,7 @@ lint:
 # Format code
 fmt:
     poetry run ruff format .
+
+# Generate osmChange file for JOSM upload
+osmchange:
+    poetry run python app_osmchange.py
