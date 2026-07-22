@@ -24,7 +24,8 @@ class OSMRelation:
 class OsmChangeGenerator(ProjectBaseModel):
     rdf_entity_prefix = "http://www.wikidata.org/entity/"
     api = Api()
-    mismatch_report_path = ""
+    output_path: str = ""
+    mismatch_report_path: str = ""
     modify_blocks: list = []
     mismatches: list[tuple[int, str, str]] = []
     mismatch_count: int = 0
@@ -91,7 +92,7 @@ class OsmChangeGenerator(ProjectBaseModel):
                 logger.warning(f"Relation {osm_id} not found in OSM")
                 return None
             tags = relation.tags()
-            version = relation.attributes().get("version", 0)
+            version = relation.version()
             return OSMRelation(osm_id=osm_id, version=int(version), tags=tags)
         except Exception as e:
             logger.error(f"Failed to fetch relation {osm_id}: {e}")
