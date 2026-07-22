@@ -12,7 +12,7 @@ if not user_name or not bot_password:
     raise ValueError("USER_NAME and BOT_PASSWORD must be set in .env")
 user_name_only = getenv("USER_NAME_ONLY", "input your user name here")
 
-loglevel = getattr(logging, getenv("LOGLEVEL", "INFO"))
+loglevel = getattr(logging, getenv("LOGLEVEL", "WARNING"))
 debug_json = getenv("DEBUG_JSON", "false").lower() == "true"
 validate_before_upload = getenv("VALIDATE_BEFORE_UPLOAD", "true").lower() == "true"
 upload_to_wikidata = getenv("UPLOAD_TO_WIKIDATA", "true").lower() == "true"

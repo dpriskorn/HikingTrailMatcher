@@ -105,7 +105,7 @@ class OsmChangeGenerator(ProjectBaseModel):
 
     def __process_relation__(self, wd_qid: str, osm_id: int) -> None:
         self.examined_count += 1
-        console.print(f"Processing relation {osm_id} (Q{wd_qid})")
+        logger.info(f"Processing relation {osm_id} (Q{wd_qid})")
         relation = self.__fetch_osm_relation__(osm_id)
         if not relation:
             return
@@ -157,7 +157,7 @@ class OsmChangeGenerator(ProjectBaseModel):
             f.write("osm_id,wd_qid,osm_wikidata\n")
             for osm_id, wd_qid, osm_wikidata in self.mismatches:
                 f.write(f"{osm_id},{wd_qid},{osm_wikidata}\n")
-        console.print(f"Mismatch report written to {self.mismatch_report_path}")
+        logger.info(f"Mismatch report written to {self.mismatch_report_path}")
 
     def __write_osmchange__(self) -> None:
         if not self.modify_blocks:
