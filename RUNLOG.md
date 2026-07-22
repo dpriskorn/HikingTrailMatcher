@@ -16,3 +16,4 @@
 * 2025-11-16 matched 0 trails lang:sv country:Q34
 * 2026-03-13 matched 1 trail lang:sv country:Q34
 * 2026-03-13 matched 0 trails lang:sv country:Q34
+* 2026-07-22 matched 2 trails lang:sv country:Q34
