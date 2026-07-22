@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class OSMRelation:
-    def __init__(self, osm_id: int, version: int, tags: dict[str, str]):
+    def __init__(self, osm_id: int, version: int, tags: dict[str, str], members: list[tuple[str, int, str]]):
         self.id = osm_id
         self.version = version
         self.tags = tags
+        self.members = members
 
 
 class OsmChangeGenerator(ProjectBaseModel):
@@ -51,6 +52,8 @@ class OsmChangeGenerator(ProjectBaseModel):
             wd_qid = item["item"]["value"].replace(self.rdf_entity_prefix, "")
             osm_id = int(item["osm"]["value"])
             self.__process_relation__(wd_qid, osm_id)
+            if self.examined_count % 100 == 0:
+                console.print(f"Processed {self.examined_count}/{len(items)} relations...")
         self.__write_mismatch_report__()
         self.__write_osmchange__()
         summary = {
@@ -93,7 +96,9 @@ class OsmChangeGenerator(ProjectBaseModel):
                 return None
             tags = relation.tags()
             version = relation.version()
-            return OSMRelation(osm_id=osm_id, version=int(version), tags=tags)
+            soup_members = getattr(relation, "_soup", None).find_all("member") if hasattr(relation, "_soup") else []
+            members = [(m.get("type", ""), int(m.get("ref", 0)), m.get("role", "")) for m in soup_members]
+            return OSMRelation(osm_id=osm_id, version=int(version), tags=tags, members=members)
         except Exception as e:
             logger.error(f"Failed to fetch relation {osm_id}: {e}")
             return None
@@ -125,6 +130,9 @@ class OsmChangeGenerator(ProjectBaseModel):
             return "mismatch"
 
     def __build_modify_block__(self, relation: OSMRelation, wd_qid: str) -> None:
+        if not relation.members:
+            logger.warning(f"Relation {relation.id} has no members, skipping")
+            return
         ET.register_namespace("", "http://openstreetmap.org/org/osmchange")
         modify = ET.Element("modify")
         elem = ET.SubElement(
@@ -132,6 +140,8 @@ class OsmChangeGenerator(ProjectBaseModel):
             id=str(relation.id),
             version=str(relation.version),
         )
+        for mem_type, mem_ref, mem_role in relation.members:
+            ET.SubElement(elem, "member", type=mem_type, ref=str(mem_ref), role=mem_role)
         for k, v in relation.tags.items():
             ET.SubElement(elem, "tag", k=k, v=v)
         ET.SubElement(elem, "tag", k="wikidata", v=wd_qid)
