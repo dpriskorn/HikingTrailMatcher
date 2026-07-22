@@ -19,6 +19,7 @@ wikibaseintegrator = "^0.12.13"
 pydash = "^7.0.4"
 osmpythontools = "0.3.5" # pin because upgrading did not work with 3.13
 rapidfuzz = "^3.14.0"
+python-dotenv = "^1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
